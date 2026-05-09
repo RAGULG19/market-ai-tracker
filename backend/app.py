@@ -108,10 +108,10 @@ def predict():
             "predictions": [float(i) for i in predictions],
 
             "ohlc": {
-                "open": data['Open'].tail(14).astype(float).tolist(),
-                "high": data['High'].tail(14).astype(float).tolist(),
-                "low": data['Low'].tail(14).astype(float).tolist(),
-                "close": data['Close'].tail(14).astype(float).tolist()
+                "open": data['Open'].squeeze().tail(14).astype(float).tolist(),
+                "high": data['High'].squeeze().tail(14).astype(float).tolist(),
+                "low": data['Low'].squeeze().tail(14).astype(float).tolist(),
+                "close": data['Close'].squeeze().tail(14).astype(float).tolist()
                 }
         })
 
