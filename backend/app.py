@@ -105,7 +105,14 @@ def predict():
             "rsi_signal": rsi_signal,
             "reason": reason,
             "alert": alert,
-            "predictions": [float(i) for i in predictions]
+            "predictions": [float(i) for i in predictions],
+
+            "ohlc": {
+                "open": [float(i) for i in data['Open'].tail(14)],
+                "high": [float(i) for i in data['High'].tail(14)],
+                "low": [float(i) for i in data['Low'].tail(14)],
+                "close": [float(i) for i in data['Close'].tail(14)]
+            }
         })
 
     except Exception as e:

@@ -9,7 +9,12 @@ import {
   PointElement
 } from "chart.js";
 
-ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement);
+ChartJS.register(
+  LineElement,
+  CategoryScale,
+  LinearScale,
+  PointElement
+);
 
 function App() {
   const [ticker, setTicker] = useState("");
@@ -42,7 +47,10 @@ function App() {
   };
 
   const chartData = {
-    labels: data ? data.predictions.map((_, i) => `Day ${i + 1}`) : [],
+    labels: data
+      ? data.predictions.map((_, i) => `Day ${i + 1}`)
+      : [],
+
     datasets: [
       {
         label: "Prediction",
@@ -70,47 +78,123 @@ function App() {
         value={ticker}
         placeholder="Enter Stock (RELIANCE.NS, AAPL...)"
         onChange={(e) => setTicker(e.target.value)}
-        style={{ padding: "10px", marginRight: "10px" }}
+        style={{
+          padding: "10px",
+          marginRight: "10px",
+          borderRadius: "8px",
+          border: "none"
+        }}
       />
 
       <button
         onClick={getPrediction}
-        style={{ padding: "10px", marginRight: "10px" }}
+        style={{
+          padding: "10px",
+          marginRight: "10px",
+          borderRadius: "8px",
+          cursor: "pointer"
+        }}
       >
         Predict
       </button>
 
       <button
         onClick={addToWatchlist}
-        style={{ padding: "10px" }}
+        style={{
+          padding: "10px",
+          borderRadius: "8px",
+          cursor: "pointer"
+        }}
       >
         ⭐ Add to Watchlist
       </button>
 
-      {loading && <p>⏳ Loading prediction...</p>}
+      {loading && (
+        <p style={{ marginTop: "20px" }}>
+          ⏳ Loading prediction...
+        </p>
+      )}
 
       {data && (
-        <div style={{ marginTop: "20px" }}>
+        <div style={{ marginTop: "30px" }}>
+
           <h2>
-            Trend: {data.trend === "UP" ? "🟢 UP" : "🔴 DOWN"}
+            📈 Trend:
+            {" "}
+            {data.trend === "UP"
+              ? "🟢 UP"
+              : "🔴 DOWN"}
           </h2>
 
-          <p>🧠 Reason: {data.reason}</p>
+          <h2>
+            💰 Current Price:
+            {" "}
+            ${data.current_price?.toFixed(2)}
+          </h2>
 
-          <div style={{ width: "600px", marginTop: "20px" }}>
+          <h2>
+            🎯 Signal:
+            {" "}
+            {data.signal === "BUY"
+              ? "🟢 BUY"
+              : "🔴 SELL"}
+          </h2>
+
+          <h3>
+            🔥 Confidence:
+            {" "}
+            {data.confidence}%
+          </h3>
+
+          <h3>
+            📊 RSI:
+            {" "}
+            {data.rsi}
+          </h3>
+
+          <h3>
+            🚦 RSI Status:
+            {" "}
+            {data.rsi_signal}
+          </h3>
+
+          <p>
+            🧠 Reason:
+            {" "}
+            {data.reason}
+          </p>
+
+          <p>
+            ⚠️ Alert:
+            {" "}
+            {data.alert}
+          </p>
+
+          <div
+            style={{
+              width: "700px",
+              marginTop: "20px",
+              background: "white",
+              padding: "20px",
+              borderRadius: "12px"
+            }}
+          >
             <Line data={chartData} />
           </div>
         </div>
       )}
 
-      <div style={{ marginTop: "30px" }}>
+      <div style={{ marginTop: "40px" }}>
         <h3>⭐ Watchlist</h3>
 
         <ul>
           {watchlist.map((item, index) => (
             <li
               key={index}
-              style={{ cursor: "pointer" }}
+              style={{
+                cursor: "pointer",
+                marginTop: "10px"
+              }}
               onClick={() => {
                 setTicker(item);
 
