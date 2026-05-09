@@ -15,10 +15,12 @@ def home():
 
 @app.route('/predict', methods=['GET'])
 def predict():
-    ticker = request.args.get('ticker').upper()
+    ticker = request.args.get('ticker')
 
     if not ticker:
         return jsonify({"error": "Ticker is required"}), 400
+
+    ticker = ticker.upper()
 
     try:
         # Download stock data
@@ -45,7 +47,11 @@ def predict():
         model.fit(X, y)
 
         # Predict next 14 days
-        future_days = np.arange(len(close_prices), len(close_prices) + 14).reshape(-1, 1)
+        future_days = np.arange(
+            len(close_prices),
+            len(close_prices) + 14
+        ).reshape(-1, 1)
+
         predictions = model.predict(future_days)
 
         # Last values
@@ -65,12 +71,9 @@ def predict():
         confidence = round(np.random.uniform(72, 92), 2)
 
         # AI explanation
-        recent_avg = float(np.mean(y[-5:]))
-        overall_avg = float(np.mean(y))
-
         if trend == "DOWN":
             reason = "AI predicts a downward trend based on recent market movement"
-            else:
+        else:
             reason = "AI predicts an upward trend based on recent market movement"
 
         # Alert
