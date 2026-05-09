@@ -26,8 +26,18 @@ function App() {
     try {
       setLoading(true);
 
+      let finalTicker = ticker.toUpperCase();
+
+      // Indian stock auto support
+      if (
+        !finalTicker.includes(".") &&
+        ["TCS", "INFY", "RELIANCE", "SBIN", "HDFCBANK", "ITC"].includes(finalTicker)
+      ) {
+        finalTicker = finalTicker + ".NS";
+      }
+
       const res = await axios.get(
-        `https://market-ai-tracker.onrender.com/predict?ticker=${ticker}`
+        `https://market-ai-tracker.onrender.com/predict?ticker=${finalTicker}`
       );
 
       setData(res.data);
