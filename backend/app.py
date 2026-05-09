@@ -12,6 +12,7 @@ CORS(app)
 def home():
     return "Market AI Tracker Backend Running"
 
+
 @app.route('/predict', methods=['GET'])
 def predict():
     ticker = request.args.get('ticker')
@@ -26,45 +27,44 @@ def predict():
         if data is None or data.empty:
             return jsonify({"error": "Invalid ticker or no data"}), 400
 
-        # Keep only Close price
-        data = data[['Close']].copy()
-        data.dropna(inplace=True)
+        # Get Close prices only
+        close_prices = data['Close'].dropna()
 
-        if len(data) < 10:
+        # Convert safely to 1D array
+        close_prices = np.array(close_prices).flatten()
+
+        if len(close_prices) < 10:
             return jsonify({"error": "Not enough data"}), 400
 
-        # Add day numbers
-        data['Day'] = np.arange(len(data))
+        # Create day numbers
+        X = np.arange(len(close_prices)).reshape(-1, 1)
+        y = close_prices
 
-        # Features and labels
-        X = data[['Day']]
-        y = data['Close'].astype(float)
-
-        # Train model
+        # Train AI model
         model = LinearRegression()
         model.fit(X, y)
 
         # Predict next 14 days
-        future_days = np.arange(len(data), len(data) + 14).reshape(-1, 1)
+        future_days = np.arange(len(close_prices), len(close_prices) + 14).reshape(-1, 1)
         predictions = model.predict(future_days)
 
-        # Latest actual and predicted values
-        last_actual = float(y.iloc[-1])
+        # Last values
+        last_actual = float(y[-1])
         last_pred = float(predictions[-1])
 
-        # Trend detection
+        # Trend
         trend = "UP" if last_pred > last_actual else "DOWN"
 
-        # Explainable AI logic
-        recent_avg = float(y.tail(5).mean())
-        overall_avg = float(y.mean())
+        # AI explanation
+        recent_avg = float(np.mean(y[-5:]))
+        overall_avg = float(np.mean(y))
 
         if recent_avg < overall_avg:
             reason = "Recent prices are falling below average (Bearish signal)"
         else:
             reason = "Prices are stable or increasing (Bullish signal)"
 
-        # Alert system
+        # Alert
         if trend == "DOWN":
             alert = "⚠️ High Risk - Price may fall"
         else:
