@@ -1,3 +1,4 @@
+from ta.momentum import RSIIndicator
 from flask import Flask, request, jsonify
 import yfinance as yf
 import numpy as np
@@ -41,6 +42,18 @@ def predict():
         # Create day numbers
         X = np.arange(len(close_prices)).reshape(-1, 1)
         y = close_prices
+
+        # RSI Calculation
+        rsi_indicator = RSIIndicator(data['Close'].squeeze())
+        rsi = float(rsi_indicator.rsi().iloc[-1])
+
+        # RSI Signal
+        if rsi > 70:
+            rsi_signal = "OVERBOUGHT 🔴"
+        elif rsi < 30:
+            rsi_signal = "OVERSOLD 🟢"
+        else:
+            rsi_signal = "NORMAL 🟡"
 
         # Train AI model
         model = LinearRegression()
@@ -88,6 +101,8 @@ def predict():
             "trend": trend,
             "signal": signal,
             "confidence": confidence,
+            "rsi": round(rsi, 2),
+            "rsi_signal": rsi_signal,
             "reason": reason,
             "alert": alert,
             "predictions": [float(i) for i in predictions]
