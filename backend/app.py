@@ -108,11 +108,11 @@ def predict():
             "predictions": [float(i) for i in predictions],
 
             "ohlc": {
-                "open": [float(i) for i in data['Open'].tail(14)],
-                "high": [float(i) for i in data['High'].tail(14)],
-                "low": [float(i) for i in data['Low'].tail(14)],
-                "close": [float(i) for i in data['Close'].tail(14)]
-            }
+                "open": data['Open'].tail(14).astype(float).tolist(),
+                "high": data['High'].tail(14).astype(float).tolist(),
+                "low": data['Low'].tail(14).astype(float).tolist(),
+                "close": data['Close'].tail(14).astype(float).tolist()
+                }
         })
 
     except Exception as e:
