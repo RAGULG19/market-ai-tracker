@@ -15,7 +15,7 @@ def home():
 
 @app.route('/predict', methods=['GET'])
 def predict():
-    ticker = request.args.get('ticker')
+    ticker = request.args.get('ticker').upper()
 
     if not ticker:
         return jsonify({"error": "Ticker is required"}), 400
@@ -68,10 +68,10 @@ def predict():
         recent_avg = float(np.mean(y[-5:]))
         overall_avg = float(np.mean(y))
 
-        if recent_avg < overall_avg:
-            reason = "Recent prices are falling below average (Bearish signal)"
-        else:
-            reason = "Prices are stable or increasing (Bullish signal)"
+        if trend == "DOWN":
+            reason = "AI predicts a downward trend based on recent market movement"
+            else:
+            reason = "AI predicts an upward trend based on recent market movement"
 
         # Alert
         if trend == "DOWN":
