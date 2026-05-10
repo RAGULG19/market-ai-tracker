@@ -1,20 +1,5 @@
 import { useState } from "react";
 import axios from "axios";
-import { Line } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  PointElement
-} from "chart.js";
-
-ChartJS.register(
-  LineElement,
-  CategoryScale,
-  LinearScale,
-  PointElement
-);
 
 function App() {
   const [ticker, setTicker] = useState("");
@@ -54,21 +39,6 @@ function App() {
     if (ticker && !watchlist.includes(ticker)) {
       setWatchlist([...watchlist, ticker]);
     }
-  };
-
-  const chartData = {
-    labels: data
-      ? data.predictions.map((_, i) => `Day ${i + 1}`)
-      : [],
-
-    datasets: [
-      {
-        label: "Prediction",
-        data: data ? data.predictions : [],
-        borderWidth: 3,
-        tension: 0.4
-      }
-    ]
   };
 
   return (
@@ -180,16 +150,21 @@ function App() {
             {data.alert}
           </p>
 
+          {/* TradingView Style Chart */}
           <div
             style={{
-              width: "700px",
               marginTop: "20px",
-              background: "white",
-              padding: "20px",
-              borderRadius: "12px"
+              borderRadius: "12px",
+              overflow: "hidden"
             }}
           >
-            <Line data={chartData} />
+            <iframe
+              title="TradingView Chart"
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${ticker.toUpperCase()}&interval=D&hidesidetoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=Asia%2FKolkata&withdateranges=1&hideideas=1`}
+              width="100%"
+              height="500"
+              frameBorder="0"
+            />
           </div>
         </div>
       )}
