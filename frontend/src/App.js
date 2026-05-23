@@ -8,6 +8,9 @@ function App() {
   const [watchlist, setWatchlist] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // ✅ YOUR RENDER BACKEND URL
+  const API_URL = "https://market-ai-tracker.onrender.com";
+
   const getPrediction = async () => {
     try {
       setLoading(true);
@@ -33,20 +36,27 @@ function App() {
         AXISBANK: "AXISBANK.NS"
       };
 
-      // ✅ Auto Convert
+      // ✅ Auto convert names
       if (stockMap[finalTicker]) {
         finalTicker = stockMap[finalTicker];
       }
 
+      // ✅ API Call
       const res = await axios.get(
-        `https://market-ai-tracker.onrender.com/predict?ticker=${finalTicker}`
+        `${API_URL}/predict?ticker=${finalTicker}`
       );
 
       setData(res.data);
 
     } catch (err) {
-      alert("Error fetching data");
       console.log(err);
+
+      if (err.response) {
+        alert(err.response.data.error || "Backend Error");
+      } else {
+        alert("Server connection failed");
+      }
+
     } finally {
       setLoading(false);
     }
@@ -62,7 +72,7 @@ function App() {
   const candlestickData = {
     series: [
       {
-        data: data
+        data: data?.ohlc?.open
           ? data.ohlc.open.map((_, index) => ({
             x: `Day ${index + 1}`,
             y: [
@@ -79,10 +89,7 @@ function App() {
       chart: {
         type: "candlestick",
         height: 350,
-        background: "#1e293b",
-        toolbar: {
-          show: true
-        }
+        background: "#1e293b"
       },
       theme: {
         mode: "dark"
@@ -164,53 +171,35 @@ function App() {
         <div style={{ marginTop: "30px" }}>
 
           <h2>
-            📈 Trend:{" "}
-            {data.trend === "UP"
-              ? "🟢 UP"
-              : "🔴 DOWN"}
+            📈 Trend: {data.trend === "UP" ? "🟢 UP" : "🔴 DOWN"}
           </h2>
 
           <h2>
-            💰 Current Price:{" "}
-            ${data.current_price?.toFixed(2)}
+            💰 Current Price: ${data.current_price?.toFixed(2)}
           </h2>
 
           <h2>
-            🎯 Signal:{" "}
-            {data.signal === "BUY"
-              ? "🟢 BUY"
-              : "🔴 SELL"}
+            🎯 Signal: {data.signal === "BUY" ? "🟢 BUY" : "🔴 SELL"}
           </h2>
 
-          <h3>
-            🔥 Confidence: {data.confidence}%
-          </h3>
+          <h3>🔥 Confidence: {data.confidence}%</h3>
 
-          <h3>
-            📊 RSI: {data.rsi}
-          </h3>
+          <h3>📊 RSI: {data.rsi}</h3>
 
-          <h3>
-            🚦 RSI Status: {data.rsi_signal}
-          </h3>
+          <h3>🚦 RSI Status: {data.rsi_signal}</h3>
 
-          <p>
-            🧠 Reason: {data.reason}
-          </p>
+          <p>🧠 Reason: {data.reason}</p>
 
           <p
             style={{
-              color:
-                data.signal === "BUY"
-                  ? "#4ade80"
-                  : "#ff4d4f",
+              color: data.signal === "BUY" ? "#4ade80" : "#ff4d4f",
               fontWeight: "bold"
             }}
           >
             ⚠️ Alert: {data.alert}
           </p>
 
-          {/* ✅ Candlestick Chart */}
+          {/* ✅ Chart */}
           <div
             style={{
               marginTop: "30px",
@@ -244,10 +233,6 @@ function App() {
               }}
               onClick={() => {
                 setTicker(item);
-
-                setTimeout(() => {
-                  getPrediction();
-                }, 300);
               }}
             >
               {item}
