@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import Chart from "react-apexcharts";
 
 function App() {
   const [ticker, setTicker] = useState("");
@@ -13,7 +14,7 @@ function App() {
 
       let finalTicker = ticker.toUpperCase();
 
-      // Indian stock auto support
+      // ✅ Indian stock auto support
       if (
         !finalTicker.includes(".") &&
         ["TCS", "INFY", "RELIANCE", "SBIN", "HDFCBANK", "ITC"].includes(finalTicker)
@@ -41,6 +42,46 @@ function App() {
     }
   };
 
+  // ✅ Candlestick Chart Data
+  const candlestickData = {
+    series: [
+      {
+        data: data
+          ? data.ohlc.open.map((_, index) => ({
+            x: `Day ${index + 1}`,
+            y: [
+              data.ohlc.open[index],
+              data.ohlc.high[index],
+              data.ohlc.low[index],
+              data.ohlc.close[index]
+            ]
+          }))
+          : []
+      }
+    ],
+    options: {
+      chart: {
+        type: "candlestick",
+        height: 350,
+        background: "#1e293b",
+        toolbar: {
+          show: true
+        }
+      },
+      theme: {
+        mode: "dark"
+      },
+      xaxis: {
+        type: "category"
+      },
+      yaxis: {
+        tooltip: {
+          enabled: true
+        }
+      }
+    }
+  };
+
   return (
     <div
       style={{
@@ -51,28 +92,34 @@ function App() {
         fontFamily: "sans-serif"
       }}
     >
-      <h1>📊 Market AI Tracker</h1>
+      <h1 style={{ fontSize: "40px" }}>
+        📊 Market AI Tracker
+      </h1>
 
       <input
         type="text"
         value={ticker}
-        placeholder="Enter Stock (RELIANCE.NS, AAPL...)"
+        placeholder="Enter Stock (RELIANCE, AAPL, TSLA...)"
         onChange={(e) => setTicker(e.target.value)}
         style={{
-          padding: "10px",
+          padding: "12px",
           marginRight: "10px",
           borderRadius: "8px",
-          border: "none"
+          border: "none",
+          width: "300px"
         }}
       />
 
       <button
         onClick={getPrediction}
         style={{
-          padding: "10px",
+          padding: "12px",
           marginRight: "10px",
           borderRadius: "8px",
-          cursor: "pointer"
+          cursor: "pointer",
+          background: "#22c55e",
+          color: "white",
+          border: "none"
         }}
       >
         Predict
@@ -81,9 +128,11 @@ function App() {
       <button
         onClick={addToWatchlist}
         style={{
-          padding: "10px",
+          padding: "12px",
           borderRadius: "8px",
-          cursor: "pointer"
+          cursor: "pointer",
+          background: "#facc15",
+          border: "none"
         }}
       >
         ⭐ Add to Watchlist
@@ -144,31 +193,40 @@ function App() {
             {data.reason}
           </p>
 
-          <p>
+          <p
+            style={{
+              color:
+                data.signal === "BUY"
+                  ? "#4ade80"
+                  : "#ff4d4f",
+              fontWeight: "bold"
+            }}
+          >
             ⚠️ Alert:
             {" "}
             {data.alert}
           </p>
 
-          {/* TradingView Style Chart */}
+          {/* ✅ Candlestick Chart */}
           <div
             style={{
-              marginTop: "20px",
-              borderRadius: "12px",
-              overflow: "hidden"
+              marginTop: "30px",
+              background: "#0f172a",
+              padding: "20px",
+              borderRadius: "12px"
             }}
           >
-            <iframe
-              title="TradingView Chart"
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${ticker.toUpperCase()}&interval=D&hidesidetoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=Asia%2FKolkata&withdateranges=1&hideideas=1`}
-              width="100%"
-              height="500"
-              frameBorder="0"
+            <Chart
+              options={candlestickData.options}
+              series={candlestickData.series}
+              type="candlestick"
+              height={400}
             />
           </div>
         </div>
       )}
 
+      {/* ✅ Watchlist */}
       <div style={{ marginTop: "40px" }}>
         <h3>⭐ Watchlist</h3>
 
@@ -178,7 +236,8 @@ function App() {
               key={index}
               style={{
                 cursor: "pointer",
-                marginTop: "10px"
+                marginTop: "10px",
+                fontSize: "18px"
               }}
               onClick={() => {
                 setTicker(item);
