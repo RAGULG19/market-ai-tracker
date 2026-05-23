@@ -12,14 +12,30 @@ function App() {
     try {
       setLoading(true);
 
-      let finalTicker = ticker.toUpperCase();
+      let finalTicker = ticker.toUpperCase().trim();
 
-      // ✅ Indian stock auto support
-      if (
-        !finalTicker.includes(".") &&
-        ["TCS", "INFY", "RELIANCE", "SBIN", "HDFCBANK", "ITC"].includes(finalTicker)
-      ) {
-        finalTicker = finalTicker + ".NS";
+      // ✅ Indian Stock Mapping
+      const stockMap = {
+        TCS: "TCS.NS",
+        INFY: "INFY.NS",
+        RELIANCE: "RELIANCE.NS",
+        SBIN: "SBIN.NS",
+        HDFCBANK: "HDFCBANK.NS",
+        ITC: "ITC.NS",
+        TATASTEEL: "TATASTEEL.NS",
+        "TATA STEEL": "TATASTEEL.NS",
+        WIPRO: "WIPRO.NS",
+        ADANI: "ADANIENT.NS",
+        ADANIPORTS: "ADANIPORTS.NS",
+        "ADITYA BIRLA": "ABCAPITAL.NS",
+        MARUTI: "MARUTI.NS",
+        ASIANPAINTS: "ASIANPAINT.NS",
+        AXISBANK: "AXISBANK.NS"
+      };
+
+      // ✅ Auto Convert
+      if (stockMap[finalTicker]) {
+        finalTicker = stockMap[finalTicker];
       }
 
       const res = await axios.get(
@@ -42,7 +58,7 @@ function App() {
     }
   };
 
-  // ✅ Candlestick Chart Data
+  // ✅ Candlestick Chart
   const candlestickData = {
     series: [
       {
@@ -99,14 +115,14 @@ function App() {
       <input
         type="text"
         value={ticker}
-        placeholder="Enter Stock (RELIANCE, AAPL, TSLA...)"
+        placeholder="Enter Stock (Tata Steel, TCS, AAPL...)"
         onChange={(e) => setTicker(e.target.value)}
         style={{
           padding: "12px",
           marginRight: "10px",
           borderRadius: "8px",
           border: "none",
-          width: "300px"
+          width: "320px"
         }}
       />
 
@@ -148,49 +164,38 @@ function App() {
         <div style={{ marginTop: "30px" }}>
 
           <h2>
-            📈 Trend:
-            {" "}
+            📈 Trend:{" "}
             {data.trend === "UP"
               ? "🟢 UP"
               : "🔴 DOWN"}
           </h2>
 
           <h2>
-            💰 Current Price:
-            {" "}
+            💰 Current Price:{" "}
             ${data.current_price?.toFixed(2)}
           </h2>
 
           <h2>
-            🎯 Signal:
-            {" "}
+            🎯 Signal:{" "}
             {data.signal === "BUY"
               ? "🟢 BUY"
               : "🔴 SELL"}
           </h2>
 
           <h3>
-            🔥 Confidence:
-            {" "}
-            {data.confidence}%
+            🔥 Confidence: {data.confidence}%
           </h3>
 
           <h3>
-            📊 RSI:
-            {" "}
-            {data.rsi}
+            📊 RSI: {data.rsi}
           </h3>
 
           <h3>
-            🚦 RSI Status:
-            {" "}
-            {data.rsi_signal}
+            🚦 RSI Status: {data.rsi_signal}
           </h3>
 
           <p>
-            🧠 Reason:
-            {" "}
-            {data.reason}
+            🧠 Reason: {data.reason}
           </p>
 
           <p
@@ -202,9 +207,7 @@ function App() {
               fontWeight: "bold"
             }}
           >
-            ⚠️ Alert:
-            {" "}
-            {data.alert}
+            ⚠️ Alert: {data.alert}
           </p>
 
           {/* ✅ Candlestick Chart */}
