@@ -3,6 +3,7 @@ import axios from "axios";
 import Chart from "react-apexcharts";
 
 function App() {
+
   const [ticker, setTicker] = useState("");
   const [data, setData] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -13,10 +14,14 @@ function App() {
 
   // ✅ Get Prediction
   const getPrediction = async (selectedTicker = ticker) => {
+
     try {
+
       setLoading(true);
 
-      let finalTicker = selectedTicker.toUpperCase().trim();
+      let finalTicker = selectedTicker
+        .toUpperCase()
+        .trim();
 
       // ✅ Indian Stock Mapping
       const stockMap = {
@@ -31,13 +36,11 @@ function App() {
         WIPRO: "WIPRO.NS",
         ADANI: "ADANIENT.NS",
         ADANIPORTS: "ADANIPORTS.NS",
-        "ADITYA BIRLA": "ABCAPITAL.NS",
         MARUTI: "MARUTI.NS",
-        ASIANPAINTS: "ASIANPAINT.NS",
         AXISBANK: "AXISBANK.NS"
       };
 
-      // ✅ Convert Indian names
+      // ✅ Convert Indian Stocks
       if (stockMap[finalTicker]) {
         finalTicker = stockMap[finalTicker];
       }
@@ -52,10 +55,14 @@ function App() {
       setData(res.data);
 
     } catch (err) {
+
       console.error(err);
 
       if (err.response) {
-        alert(err.response.data.error || "Backend Error");
+        alert(
+          err.response.data.error ||
+          "Backend Error"
+        );
       } else {
         alert("Server connection failed");
       }
@@ -67,31 +74,44 @@ function App() {
 
   // ✅ Add Watchlist
   const addToWatchlist = () => {
-    const stock = ticker.toUpperCase().trim();
 
-    if (stock && !watchlist.includes(stock)) {
-      setWatchlist([...watchlist, stock]);
+    const stock = ticker
+      .toUpperCase()
+      .trim();
+
+    if (
+      stock &&
+      !watchlist.includes(stock)
+    ) {
+      setWatchlist([
+        ...watchlist,
+        stock
+      ]);
     }
   };
 
   // ✅ Chart Data
   const candlestickData = {
+
     series: [
       {
         data:
-          data?.ohlc?.open?.map((_, index) => ({
-            x: `Day ${index + 1}`,
-            y: [
-              data.ohlc.open[index],
-              data.ohlc.high[index],
-              data.ohlc.low[index],
-              data.ohlc.close[index]
-            ]
-          })) || []
+          data?.ohlc?.open?.map(
+            (_, index) => ({
+              x: `Day ${index + 1}`,
+              y: [
+                Number(data.ohlc.open[index]),
+                Number(data.ohlc.high[index]),
+                Number(data.ohlc.low[index]),
+                Number(data.ohlc.close[index])
+              ]
+            })
+          ) || []
       }
     ],
 
     options: {
+
       chart: {
         type: "candlestick",
         height: 350,
@@ -118,16 +138,24 @@ function App() {
   };
 
   return (
+
     <div
       style={{
-        background: "linear-gradient(135deg, #0f172a, #1e293b)",
+        background:
+          "linear-gradient(135deg, #0f172a, #1e293b)",
         color: "white",
         minHeight: "100vh",
         padding: "40px",
         fontFamily: "sans-serif"
       }}
     >
-      <h1 style={{ fontSize: "40px" }}>
+
+      <h1
+        style={{
+          fontSize: "40px",
+          marginBottom: "20px"
+        }}
+      >
         📊 Market AI Tracker
       </h1>
 
@@ -135,8 +163,10 @@ function App() {
       <input
         type="text"
         value={ticker}
-        placeholder="Enter Stock (TCS, Tata Steel, AAPL...)"
-        onChange={(e) => setTicker(e.target.value)}
+        placeholder="Enter Stock (TCS, INFY, AAPL...)"
+        onChange={(e) =>
+          setTicker(e.target.value)
+        }
         style={{
           padding: "12px",
           marginRight: "10px",
@@ -162,7 +192,7 @@ function App() {
         Predict
       </button>
 
-      {/* ✅ Watchlist Button */}
+      {/* ✅ Watchlist */}
       <button
         onClick={addToWatchlist}
         style={{
@@ -185,58 +215,70 @@ function App() {
 
       {/* ✅ Prediction Result */}
       {data && (
+
         <div style={{ marginTop: "30px" }}>
 
           <h2>
             📈 Trend:{" "}
-            {data?.trend === "UP"
+            {data.trend === "UP"
               ? "🟢 UP"
               : "🔴 DOWN"}
           </h2>
 
           <h2>
             💰 Current Price: $
-            {data?.current_price
-              ? Number(data.current_price).toFixed(2)
+            {!isNaN(
+              Number(data.current_price)
+            )
+              ? Number(
+                data.current_price
+              ).toFixed(2)
               : "0.00"}
           </h2>
 
           <h2>
             🎯 Signal:{" "}
-            {data?.signal === "BUY"
+            {data.signal === "BUY"
               ? "🟢 BUY"
               : "🔴 SELL"}
           </h2>
 
           <h3>
-            🔥 Confidence: {data?.confidence || 0}%
+            🔥 Confidence:{" "}
+            {data.confidence ?? 0}%
           </h3>
 
           <h3>
-            📊 RSI: {data?.rsi || "N/A"}
+            📊 RSI:{" "}
+            {data.rsi ?? "N/A"}
           </h3>
 
           <h3>
-            🚦 RSI Status: {data?.rsi_signal || "N/A"}
+            🚦 RSI Status:{" "}
+            {data.rsi_signal ?? "N/A"}
           </h3>
 
           <p>
-            🧠 Reason: {data?.reason || "No analysis available"}
+            🧠 Reason:{" "}
+            {data.reason ??
+              "No analysis available"}
           </p>
 
           <p
             style={{
               color:
-                data?.signal === "BUY"
+                data.signal === "BUY"
                   ? "#4ade80"
                   : "#ff4d4f",
               fontWeight: "bold"
             }}
           >
-            ⚠️ Alert: {data?.alert || "No alerts"}
+            ⚠️ Alert:{" "}
+            {data.alert ??
+              "No alerts"}
           </p>
 
-          {/* ✅ Candlestick Chart */}
+          {/* ✅ Chart */}
           <div
             style={{
               marginTop: "30px",
@@ -245,12 +287,18 @@ function App() {
               borderRadius: "12px"
             }}
           >
+
             <Chart
-              options={candlestickData.options}
-              series={candlestickData.series}
+              options={
+                candlestickData.options
+              }
+              series={
+                candlestickData.series
+              }
               type="candlestick"
               height={400}
             />
+
           </div>
 
         </div>
@@ -258,27 +306,35 @@ function App() {
 
       {/* ✅ Watchlist */}
       <div style={{ marginTop: "40px" }}>
+
         <h3>⭐ Watchlist</h3>
 
         <ul>
-          {watchlist.map((item, index) => (
-            <li
-              key={index}
-              style={{
-                cursor: "pointer",
-                marginTop: "10px",
-                fontSize: "18px"
-              }}
-              onClick={() => {
-                setTicker(item);
-                getPrediction(item);
-              }}
-            >
-              {item}
-            </li>
-          ))}
+
+          {watchlist.map(
+            (item, index) => (
+
+              <li
+                key={index}
+                style={{
+                  cursor: "pointer",
+                  marginTop: "10px",
+                  fontSize: "18px"
+                }}
+                onClick={() => {
+                  setTicker(item);
+                  getPrediction(item);
+                }}
+              >
+                {item}
+              </li>
+            )
+          )}
+
         </ul>
+
       </div>
+
     </div>
   );
 }
