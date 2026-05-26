@@ -8,14 +8,15 @@ function App() {
   const [watchlist, setWatchlist] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ YOUR RENDER BACKEND URL
+  // ✅ Backend URL
   const API_URL = "https://market-ai-tracker.onrender.com";
 
-  const getPrediction = async () => {
+  // ✅ Get Prediction
+  const getPrediction = async (selectedTicker = ticker) => {
     try {
       setLoading(true);
 
-      let finalTicker = ticker.toUpperCase().trim();
+      let finalTicker = selectedTicker.toUpperCase().trim();
 
       // ✅ Indian Stock Mapping
       const stockMap = {
@@ -36,7 +37,7 @@ function App() {
         AXISBANK: "AXISBANK.NS"
       };
 
-      // ✅ Auto convert names
+      // ✅ Convert Indian names
       if (stockMap[finalTicker]) {
         finalTicker = stockMap[finalTicker];
       }
@@ -49,7 +50,7 @@ function App() {
       setData(res.data);
 
     } catch (err) {
-      console.log(err);
+      console.error(err);
 
       if (err.response) {
         alert(err.response.data.error || "Backend Error");
@@ -62,18 +63,21 @@ function App() {
     }
   };
 
+  // ✅ Add Watchlist
   const addToWatchlist = () => {
-    if (ticker && !watchlist.includes(ticker)) {
-      setWatchlist([...watchlist, ticker]);
+    const stock = ticker.toUpperCase().trim();
+
+    if (stock && !watchlist.includes(stock)) {
+      setWatchlist([...watchlist, stock]);
     }
   };
 
-  // ✅ Candlestick Chart
+  // ✅ Chart Data
   const candlestickData = {
     series: [
       {
-        data: data?.ohlc?.open
-          ? data.ohlc.open.map((_, index) => ({
+        data:
+          data?.ohlc?.open?.map((_, index) => ({
             x: `Day ${index + 1}`,
             y: [
               data.ohlc.open[index],
@@ -81,22 +85,28 @@ function App() {
               data.ohlc.low[index],
               data.ohlc.close[index]
             ]
-          }))
-          : []
+          })) || []
       }
     ],
+
     options: {
       chart: {
         type: "candlestick",
         height: 350,
-        background: "#1e293b"
+        background: "#1e293b",
+        toolbar: {
+          show: true
+        }
       },
+
       theme: {
         mode: "dark"
       },
+
       xaxis: {
         type: "category"
       },
+
       yaxis: {
         tooltip: {
           enabled: true
@@ -119,10 +129,11 @@ function App() {
         📊 Market AI Tracker
       </h1>
 
+      {/* ✅ Input */}
       <input
         type="text"
         value={ticker}
-        placeholder="Enter Stock (Tata Steel, TCS, AAPL...)"
+        placeholder="Enter Stock (TCS, Tata Steel, AAPL...)"
         onChange={(e) => setTicker(e.target.value)}
         style={{
           padding: "12px",
@@ -133,8 +144,9 @@ function App() {
         }}
       />
 
+      {/* ✅ Predict Button */}
       <button
-        onClick={getPrediction}
+        onClick={() => getPrediction()}
         style={{
           padding: "12px",
           marginRight: "10px",
@@ -148,6 +160,7 @@ function App() {
         Predict
       </button>
 
+      {/* ✅ Watchlist Button */}
       <button
         onClick={addToWatchlist}
         style={{
@@ -161,45 +174,65 @@ function App() {
         ⭐ Add to Watchlist
       </button>
 
+      {/* ✅ Loading */}
       {loading && (
         <p style={{ marginTop: "20px" }}>
           ⏳ Loading prediction...
         </p>
       )}
 
+      {/* ✅ Prediction Result */}
       {data && (
         <div style={{ marginTop: "30px" }}>
 
           <h2>
-            📈 Trend: {data.trend === "UP" ? "🟢 UP" : "🔴 DOWN"}
+            📈 Trend:{" "}
+            {data.trend === "UP"
+              ? "🟢 UP"
+              : "🔴 DOWN"}
           </h2>
 
           <h2>
-            💰 Current Price: ${data.current_price?.toFixed(2)}
+            💰 Current Price: $
+            {Number(data.current_price).toFixed(2)}
           </h2>
 
           <h2>
-            🎯 Signal: {data.signal === "BUY" ? "🟢 BUY" : "🔴 SELL"}
+            🎯 Signal:{" "}
+            {data.signal === "BUY"
+              ? "🟢 BUY"
+              : "🔴 SELL"}
           </h2>
 
-          <h3>🔥 Confidence: {data.confidence}%</h3>
+          <h3>
+            🔥 Confidence: {data.confidence}%
+          </h3>
 
-          <h3>📊 RSI: {data.rsi}</h3>
+          <h3>
+            📊 RSI: {data.rsi}
+          </h3>
 
-          <h3>🚦 RSI Status: {data.rsi_signal}</h3>
+          <h3>
+            🚦 RSI Status: {data.rsi_signal}
+          </h3>
 
-          <p>🧠 Reason: {data.reason}</p>
+          <p>
+            🧠 Reason: {data.reason}
+          </p>
 
           <p
             style={{
-              color: data.signal === "BUY" ? "#4ade80" : "#ff4d4f",
+              color:
+                data.signal === "BUY"
+                  ? "#4ade80"
+                  : "#ff4d4f",
               fontWeight: "bold"
             }}
           >
             ⚠️ Alert: {data.alert}
           </p>
 
-          {/* ✅ Chart */}
+          {/* ✅ Candlestick Chart */}
           <div
             style={{
               marginTop: "30px",
@@ -233,6 +266,7 @@ function App() {
               }}
               onClick={() => {
                 setTicker(item);
+                getPrediction(item);
               }}
             >
               {item}
