@@ -27,10 +27,8 @@ def predict():
             "error": "Ticker is required"
         }), 400
 
-    # ✅ Clean ticker
     ticker = ticker.upper().strip()
 
-    # ✅ Indian stock mapping
     indian_stocks = {
         "TCS": "TCS.NS",
         "INFY": "INFY.NS",
@@ -52,7 +50,6 @@ def predict():
 
         print("📊 Fetching ticker:", ticker)
 
-        # ✅ Download stock data
         data = yf.download(
             tickers=ticker,
             period="3mo",
@@ -64,13 +61,11 @@ def predict():
 
         print(data.tail())
 
-        # ✅ Validate data
         if data.empty:
             return jsonify({
                 "error": "Invalid ticker or no data found"
             }), 400
 
-        # ✅ Remove NaN rows
         data = data.dropna()
 
         if len(data) < 20:
@@ -78,22 +73,26 @@ def predict():
                 "error": "Not enough stock data"
             }), 400
 
-        # ✅ Convert prices safely
-        close_prices = data["Close"].astype(float).values.flatten()
+        # Close Prices
+        close_prices = (
+            data["Close"]
+            .values
+            .flatten()
+            .astype(float)
+        )
 
         current_price = round(
             float(close_prices[-1]),
             2
         )
 
-        # ✅ AI Linear Regression
+        # AI Prediction
         X = np.arange(len(close_prices)).reshape(-1, 1)
         y = close_prices
 
         model = LinearRegression()
         model.fit(X, y)
 
-        # ✅ Predict next 14 days
         future_days = np.arange(
             len(close_prices),
             len(close_prices) + 14
@@ -103,27 +102,24 @@ def predict():
 
         future_prediction = float(predictions[-1])
 
-        # ✅ Trend
         trend = (
             "UP"
             if future_prediction > current_price
             else "DOWN"
         )
 
-        # ✅ Signal
         signal = (
             "BUY"
             if trend == "UP"
             else "SELL"
         )
 
-        # ✅ Confidence
         confidence = round(
             np.random.uniform(75, 95),
             2
         )
 
-        # ✅ RSI
+        # RSI
         close_series = pd.Series(close_prices)
 
         rsi_indicator = RSIIndicator(
@@ -136,7 +132,6 @@ def predict():
             2
         )
 
-        # ✅ RSI Signal
         if rsi > 70:
             rsi_signal = "OVERBOUGHT 🔴"
         elif rsi < 30:
@@ -144,7 +139,6 @@ def predict():
         else:
             rsi_signal = "NORMAL 🟡"
 
-        # ✅ AI Reason
         if trend == "UP":
             reason = (
                 "AI predicts bullish momentum "
@@ -156,16 +150,17 @@ def predict():
                 "based on recent market trend"
             )
 
-        # ✅ Alert
         if trend == "UP":
             alert = "✅ Positive Trend - Safer Zone"
         else:
             alert = "⚠️ High Risk - Price may fall"
 
-        # ✅ OHLC Data
+        # ✅ FIXED OHLC DATA
         open_prices = (
             data["Open"]
             .tail(14)
+            .values
+            .flatten()
             .astype(float)
             .tolist()
         )
@@ -173,6 +168,8 @@ def predict():
         high_prices = (
             data["High"]
             .tail(14)
+            .values
+            .flatten()
             .astype(float)
             .tolist()
         )
@@ -180,6 +177,8 @@ def predict():
         low_prices = (
             data["Low"]
             .tail(14)
+            .values
+            .flatten()
             .astype(float)
             .tolist()
         )
@@ -187,11 +186,12 @@ def predict():
         close_chart = (
             data["Close"]
             .tail(14)
+            .values
+            .flatten()
             .astype(float)
             .tolist()
         )
 
-        # ✅ Final API Response
         return jsonify({
             "ticker": ticker,
             "current_price": current_price,
