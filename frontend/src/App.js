@@ -1,6 +1,27 @@
 import { useState } from "react";
 import axios from "axios";
 import Chart from "react-apexcharts";
+import { Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 function App() {
 
@@ -297,7 +318,18 @@ function App() {
               }
               type="candlestick"
               height={400}
-            />
+              const predictionChart={
+                labels: data?.predictions
+                ? data.predictions.map((_, i) => `Day ${i + 1}`)
+            : [],
+            datasets: [
+            {
+              label: "AI Prediction",
+            data: data?.predictions || [],
+                  },
+            ],
+              };
+              />
 
           </div>
 
@@ -339,4 +371,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
