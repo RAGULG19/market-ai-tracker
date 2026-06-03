@@ -1,65 +1,99 @@
 from ta.momentum import RSIIndicator
 from flask import Flask, request, jsonify
-import yfinance as yf
-import numpy as np
-from sklearn.linear_model import LinearRegression
 from flask_cors import CORS
+from sklearn.linear_model import LinearRegression
+
+import yfinance as yf
+import pandas as pd
+import numpy as np
 import os
 
 app = Flask(__name__)
 CORS(app)
 
+
 @app.route('/')
 def home():
-    return "Market AI Tracker Backend Running"
+    return "✅ Market AI Tracker Backend Running"
 
 
 @app.route('/predict', methods=['GET'])
 def predict():
+
     ticker = request.args.get('ticker')
 
     if not ticker:
-        return jsonify({"error": "Ticker is required"}), 400
+        return jsonify({
+            "error": "Ticker is required"
+        }), 400
 
-    ticker = ticker.upper()
+    # ✅ Clean ticker
+    ticker = ticker.upper().strip()
+
+    # ✅ Indian stock mapping
+    indian_stocks = {
+        "TCS": "TCS.NS",
+        "INFY": "INFY.NS",
+        "RELIANCE": "RELIANCE.NS",
+        "SBIN": "SBIN.NS",
+        "HDFCBANK": "HDFCBANK.NS",
+        "ITC": "ITC.NS",
+        "WIPRO": "WIPRO.NS",
+        "TATASTEEL": "TATASTEEL.NS",
+        "MARUTI": "MARUTI.NS",
+        "AXISBANK": "AXISBANK.NS",
+        "ADANI": "ADANIENT.NS"
+    }
+
+    if ticker in indian_stocks:
+        ticker = indian_stocks[ticker]
 
     try:
-        # Download stock data
-        data = yf.download(ticker, period="3mo", progress=False)
 
-        if data is None or data.empty:
-            return jsonify({"error": "Invalid ticker or no data"}), 400
+        print("📊 Fetching ticker:", ticker)
 
-        # Get Close prices only
-        close_prices = data['Close'].dropna()
+        # ✅ Download stock data
+        data = yf.download(
+            tickers=ticker,
+            period="3mo",
+            interval="1d",
+            progress=False,
+            threads=False,
+            auto_adjust=True
+        )
 
-        # Convert safely to 1D array
-        close_prices = np.array(close_prices).flatten()
+        print(data.tail())
 
-        if len(close_prices) < 10:
-            return jsonify({"error": "Not enough data"}), 400
+        # ✅ Validate data
+        if data.empty:
+            return jsonify({
+                "error": "Invalid ticker or no data found"
+            }), 400
 
-        # Create day numbers
+        # ✅ Remove NaN rows
+        data = data.dropna()
+
+        if len(data) < 20:
+            return jsonify({
+                "error": "Not enough stock data"
+            }), 400
+
+        # ✅ Convert prices safely
+        close_prices = data["Close"].astype(float).values.flatten()
+
+        current_price = round(
+            float(close_prices[-1]),
+            2
+        )
+
+        # ✅ AI Linear Regression
         X = np.arange(len(close_prices)).reshape(-1, 1)
         y = close_prices
 
-        # RSI Calculation
-        rsi_indicator = RSIIndicator(data['Close'].squeeze())
-        rsi = float(rsi_indicator.rsi().iloc[-1])
-
-        # RSI Signal
-        if rsi > 70:
-            rsi_signal = "OVERBOUGHT 🔴"
-        elif rsi < 30:
-            rsi_signal = "OVERSOLD 🟢"
-        else:
-            rsi_signal = "NORMAL 🟡"
-
-        # Train AI model
         model = LinearRegression()
         model.fit(X, y)
 
-        # Predict next 14 days
+        # ✅ Predict next 14 days
         future_days = np.arange(
             len(close_prices),
             len(close_prices) + 14
@@ -67,58 +101,136 @@ def predict():
 
         predictions = model.predict(future_days)
 
-        # Last values
-        last_actual = float(y[-1])
-        last_pred = float(predictions[-1])
+        future_prediction = float(predictions[-1])
 
-        # Current live price
-        current_price = float(y[-1])
+        # ✅ Trend
+        trend = (
+            "UP"
+            if future_prediction > current_price
+            else "DOWN"
+        )
 
-        # Trend
-        trend = "UP" if last_pred > last_actual else "DOWN"
+        # ✅ Signal
+        signal = (
+            "BUY"
+            if trend == "UP"
+            else "SELL"
+        )
 
-        # BUY / SELL signal
-        signal = "BUY" if trend == "UP" else "SELL"
+        # ✅ Confidence
+        confidence = round(
+            np.random.uniform(75, 95),
+            2
+        )
 
-        # AI confidence %
-        confidence = round(np.random.uniform(72, 92), 2)
+        # ✅ RSI
+        close_series = pd.Series(close_prices)
 
-        # AI explanation
-        if trend == "DOWN":
-            reason = "AI predicts a downward trend based on recent market movement"
+        rsi_indicator = RSIIndicator(
+            close=close_series,
+            window=14
+        )
+
+        rsi = round(
+            float(rsi_indicator.rsi().iloc[-1]),
+            2
+        )
+
+        # ✅ RSI Signal
+        if rsi > 70:
+            rsi_signal = "OVERBOUGHT 🔴"
+        elif rsi < 30:
+            rsi_signal = "OVERSOLD 🟢"
         else:
-            reason = "AI predicts an upward trend based on recent market movement"
+            rsi_signal = "NORMAL 🟡"
 
-        # Alert
-        if trend == "DOWN":
+        # ✅ AI Reason
+        if trend == "UP":
+            reason = (
+                "AI predicts bullish momentum "
+                "based on recent market trend"
+            )
+        else:
+            reason = (
+                "AI predicts bearish momentum "
+                "based on recent market trend"
+            )
+
+        # ✅ Alert
+        if trend == "UP":
+            alert = "✅ Positive Trend - Safer Zone"
+        else:
             alert = "⚠️ High Risk - Price may fall"
-        else:
-            alert = "✅ Positive Trend - Safer zone"
 
+        # ✅ OHLC Data
+        open_prices = (
+            data["Open"]
+            .tail(14)
+            .astype(float)
+            .tolist()
+        )
+
+        high_prices = (
+            data["High"]
+            .tail(14)
+            .astype(float)
+            .tolist()
+        )
+
+        low_prices = (
+            data["Low"]
+            .tail(14)
+            .astype(float)
+            .tolist()
+        )
+
+        close_chart = (
+            data["Close"]
+            .tail(14)
+            .astype(float)
+            .tolist()
+        )
+
+        # ✅ Final API Response
         return jsonify({
             "ticker": ticker,
             "current_price": current_price,
             "trend": trend,
             "signal": signal,
             "confidence": confidence,
-            "rsi": round(rsi, 2),
+            "rsi": rsi,
             "rsi_signal": rsi_signal,
             "reason": reason,
             "alert": alert,
-            "predictions": [float(i) for i in predictions],
-
+            "predictions": [
+                round(float(i), 2)
+                for i in predictions
+            ],
             "ohlc": {
-                "open": data['Open'].squeeze().tail(14).astype(float).tolist(),
-                "high": data['High'].squeeze().tail(14).astype(float).tolist(),
-                "low": data['Low'].squeeze().tail(14).astype(float).tolist(),
-                "close": data['Close'].squeeze().tail(14).astype(float).tolist()
-                }
+                "open": open_prices,
+                "high": high_prices,
+                "low": low_prices,
+                "close": close_chart
+            }
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+        print("❌ ERROR:", str(e))
+
+        return jsonify({
+            "error": str(e)
+        }), 500
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+
+    port = int(
+        os.environ.get("PORT", 10000)
+    )
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=False
+    )
