@@ -55,8 +55,10 @@ Here’s a preview of the Market AI Tracker dashboard:
 
 **Ragul G**  
 B.Tech AI & Data Science, RVS Technical Campus, Coimbatore  
-💡 Interests: AI, ML, Data Science, Web Development  
-📫 Contact: ragul45678@gmail.com
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/ragulg07)  
+[![Email](https://img.shields.io/badge/Email-Contact-red?logo=gmail)](mailto:ragulg45678@gmail.com)
+
 
 ---
 
