@@ -19,13 +19,10 @@ def home():
 
 @app.route('/predict', methods=['GET'])
 def predict():
-
     ticker = request.args.get('ticker')
 
     if not ticker:
-        return jsonify({
-            "error": "Ticker is required"
-        }), 400
+        return jsonify({"error": "Ticker is required"}), 400
 
     ticker = ticker.upper().strip()
 
@@ -47,7 +44,6 @@ def predict():
         ticker = indian_stocks[ticker]
 
     try:
-
         print("📊 Fetching ticker:", ticker)
 
         data = yf.download(
@@ -59,78 +55,36 @@ def predict():
             auto_adjust=True
         )
 
-        print(data.tail())
-
         if data.empty:
-            return jsonify({
-                "error": "Invalid ticker or no data found"
-            }), 400
+            return jsonify({"error": "Invalid ticker or no data found"}), 400
 
         data = data.dropna()
 
-        if len(data) < 20:
-            return jsonify({
-                "error": "Not enough stock data"
-            }), 400
+        if len(data) < 50:
+            return jsonify({"error": "Not enough stock data"}), 400
 
         # Close Prices
-        close_prices = (
-            data["Close"]
-            .values
-            .flatten()
-            .astype(float)
-        )
+        close_prices = data["Close"].values.flatten().astype(float)
+        current_price = round(float(close_prices[-1]), 2)
 
-        current_price = round(
-            float(close_prices[-1]),
-            2
-        )
-
-        # AI Prediction
+        # AI Prediction (Linear Regression)
         X = np.arange(len(close_prices)).reshape(-1, 1)
         y = close_prices
-
         model = LinearRegression()
         model.fit(X, y)
 
-        future_days = np.arange(
-            len(close_prices),
-            len(close_prices) + 14
-        ).reshape(-1, 1)
-
+        future_days = np.arange(len(close_prices), len(close_prices) + 14).reshape(-1, 1)
         predictions = model.predict(future_days)
-
         future_prediction = float(predictions[-1])
 
-        trend = (
-            "UP"
-            if future_prediction > current_price
-            else "DOWN"
-        )
-
-        signal = (
-            "BUY"
-            if trend == "UP"
-            else "SELL"
-        )
-
-        confidence = round(
-            np.random.uniform(75, 95),
-            2
-        )
+        trend = "UP" if future_prediction > current_price else "DOWN"
+        signal = "BUY" if trend == "UP" else "SELL"
+        confidence = round(np.random.uniform(75, 95), 2)
 
         # RSI
         close_series = pd.Series(close_prices)
-
-        rsi_indicator = RSIIndicator(
-            close=close_series,
-            window=14
-        )
-
-        rsi = round(
-            float(rsi_indicator.rsi().iloc[-1]),
-            2
-        )
+        rsi_indicator = RSIIndicator(close=close_series, window=14)
+        rsi = round(float(rsi_indicator.rsi().iloc[-1]), 2)
 
         if rsi > 70:
             rsi_signal = "OVERBOUGHT 🔴"
@@ -139,58 +93,20 @@ def predict():
         else:
             rsi_signal = "NORMAL 🟡"
 
-        if trend == "UP":
-            reason = (
-                "AI predicts bullish momentum "
-                "based on recent market trend"
-            )
-        else:
-            reason = (
-                "AI predicts bearish momentum "
-                "based on recent market trend"
-            )
+        reason = "AI predicts bullish momentum based on recent market trend" if trend == "UP" else "AI predicts bearish momentum based on recent market trend"
+        alert = "✅ Positive Trend - Safer Zone" if trend == "UP" else "⚠️ High Risk - Price may fall"
 
-        if trend == "UP":
-            alert = "✅ Positive Trend - Safer Zone"
-        else:
-            alert = "⚠️ High Risk - Price may fall"
+        # ✅ SMA Calculation
+        data["SMA20"] = data["Close"].rolling(20).mean()
+        data["SMA50"] = data["Close"].rolling(50).mean()
+        sma20 = round(float(data["SMA20"].iloc[-1]), 2)
+        sma50 = round(float(data["SMA50"].iloc[-1]), 2)
 
-        # ✅ FIXED OHLC DATA
-        open_prices = (
-            data["Open"]
-            .tail(14)
-            .values
-            .flatten()
-            .astype(float)
-            .tolist()
-        )
-
-        high_prices = (
-            data["High"]
-            .tail(14)
-            .values
-            .flatten()
-            .astype(float)
-            .tolist()
-        )
-
-        low_prices = (
-            data["Low"]
-            .tail(14)
-            .values
-            .flatten()
-            .astype(float)
-            .tolist()
-        )
-
-        close_chart = (
-            data["Close"]
-            .tail(14)
-            .values
-            .flatten()
-            .astype(float)
-            .tolist()
-        )
+        # ✅ OHLC Data
+        open_prices = data["Open"].tail(14).values.flatten().astype(float).tolist()
+        high_prices = data["High"].tail(14).values.flatten().astype(float).tolist()
+        low_prices = data["Low"].tail(14).values.flatten().astype(float).tolist()
+        close_chart = data["Close"].tail(14).values.flatten().astype(float).tolist()
 
         return jsonify({
             "ticker": ticker,
@@ -200,12 +116,11 @@ def predict():
             "confidence": confidence,
             "rsi": rsi,
             "rsi_signal": rsi_signal,
+            "sma20": sma20,
+            "sma50": sma50,
             "reason": reason,
             "alert": alert,
-            "predictions": [
-                round(float(i), 2)
-                for i in predictions
-            ],
+            "predictions": [round(float(i), 2) for i in predictions],
             "ohlc": {
                 "open": open_prices,
                 "high": high_prices,
@@ -215,22 +130,10 @@ def predict():
         })
 
     except Exception as e:
-
         print("❌ ERROR:", str(e))
-
-        return jsonify({
-            "error": str(e)
-        }), 500
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
-
-    port = int(
-        os.environ.get("PORT", 10000)
-    )
-
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False
-    )
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=False)

@@ -24,27 +24,18 @@ ChartJS.register(
 );
 
 function App() {
-
   const [ticker, setTicker] = useState("");
   const [data, setData] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Backend URL
   const API_URL = "https://market-ai-tracker.onrender.com";
 
-  // ✅ Get Prediction
   const getPrediction = async (selectedTicker = ticker) => {
-
     try {
-
       setLoading(true);
+      let finalTicker = selectedTicker.toUpperCase().trim();
 
-      let finalTicker = selectedTicker
-        .toUpperCase()
-        .trim();
-
-      // ✅ Indian Stock Mapping
       const stockMap = {
         TCS: "TCS.NS",
         INFY: "INFY.NS",
@@ -58,146 +49,106 @@ function App() {
         ADANI: "ADANIENT.NS",
         ADANIPORTS: "ADANIPORTS.NS",
         MARUTI: "MARUTI.NS",
-        AXISBANK: "AXISBANK.NS"
+        AXISBANK: "AXISBANK.NS",
       };
 
-      // ✅ Convert Indian Stocks
       if (stockMap[finalTicker]) {
         finalTicker = stockMap[finalTicker];
       }
 
-      // ✅ API Call
-      const res = await axios.get(
-        `${API_URL}/predict?ticker=${finalTicker}`
-      );
-
+      const res = await axios.get(`${API_URL}/predict?ticker=${finalTicker}`);
       console.log("API RESPONSE:", res.data);
-
       setData(res.data);
-
     } catch (err) {
-
       console.error(err);
-
       if (err.response) {
-        alert(
-          err.response.data.error ||
-          "Backend Error"
-        );
+        alert(err.response.data.error || "Backend Error");
       } else {
         alert("Server connection failed");
       }
-
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Add Watchlist
   const addToWatchlist = () => {
-
-    const stock = ticker
-      .toUpperCase()
-      .trim();
-
-    if (
-      stock &&
-      !watchlist.includes(stock)
-    ) {
-      setWatchlist([
-        ...watchlist,
-        stock
-      ]);
+    const stock = ticker.toUpperCase().trim();
+    if (stock && !watchlist.includes(stock)) {
+      setWatchlist([...watchlist, stock]);
     }
   };
 
-  // ✅ Chart Data
+  // ✅ Candlestick Chart Data
   const candlestickData = {
-
     series: [
       {
         data:
-          data?.ohlc?.open?.map(
-            (_, index) => ({
-              x: `Day ${index + 1}`,
-              y: [
-                Number(data.ohlc.open[index]),
-                Number(data.ohlc.high[index]),
-                Number(data.ohlc.low[index]),
-                Number(data.ohlc.close[index])
-              ]
-            })
-          ) || []
-      }
+          data?.ohlc?.open?.map((_, index) => ({
+            x: `Day ${index + 1}`,
+            y: [
+              Number(data.ohlc.open[index]),
+              Number(data.ohlc.high[index]),
+              Number(data.ohlc.low[index]),
+              Number(data.ohlc.close[index]),
+            ],
+          })) || [],
+      },
     ],
-
     options: {
-
       chart: {
         type: "candlestick",
         height: 350,
         background: "#1e293b",
-        toolbar: {
-          show: true
-        }
+        toolbar: { show: true },
       },
+      theme: { mode: "dark" },
+      xaxis: { type: "category" },
+      yaxis: { tooltip: { enabled: true } },
+    },
+  };
 
-      theme: {
-        mode: "dark"
+  // ✅ Prediction Chart Data
+  const predictionChart = {
+    labels: data?.predictions
+      ? data.predictions.map((_, i) => `Day ${i + 1}`)
+      : [],
+    datasets: [
+      {
+        label: "AI Prediction",
+        data: data?.predictions || [],
+        borderColor: "#22c55e",
+        backgroundColor: "#22c55e",
+        tension: 0.4,
       },
-
-      xaxis: {
-        type: "category"
-      },
-
-      yaxis: {
-        tooltip: {
-          enabled: true
-        }
-      }
-    }
+    ],
   };
 
   return (
-
     <div
       style={{
-        background:
-          "linear-gradient(135deg, #0f172a, #1e293b)",
+        background: "linear-gradient(135deg, #0f172a, #1e293b)",
         color: "white",
         minHeight: "100vh",
         padding: "40px",
-        fontFamily: "sans-serif"
+        fontFamily: "sans-serif",
       }}
     >
+      <h1 style={{ fontSize: "40px", marginBottom: "20px" }}>📊 Market AI Tracker</h1>
 
-      <h1
-        style={{
-          fontSize: "40px",
-          marginBottom: "20px"
-        }}
-      >
-        📊 Market AI Tracker
-      </h1>
-
-      {/* ✅ Input */}
       <input
         type="text"
         value={ticker}
         placeholder="Enter Stock (TCS, INFY, AAPL...)"
-        onChange={(e) =>
-          setTicker(e.target.value)
-        }
+        onChange={(e) => setTicker(e.target.value)}
         style={{
           padding: "12px",
           marginRight: "10px",
           borderRadius: "8px",
           border: "none",
-          width: "320px"
+          width: "320px",
         }}
       />
 
-      {/* ✅ Predict Button */}
       <button
         onClick={() => getPrediction()}
         style={{
@@ -207,13 +158,12 @@ function App() {
           cursor: "pointer",
           background: "#22c55e",
           color: "white",
-          border: "none"
+          border: "none",
         }}
       >
         Predict
       </button>
 
-      {/* ✅ Watchlist */}
       <button
         onClick={addToWatchlist}
         style={{
@@ -221,154 +171,110 @@ function App() {
           borderRadius: "8px",
           cursor: "pointer",
           background: "#facc15",
-          border: "none"
+          border: "none",
         }}
       >
         ⭐ Add to Watchlist
       </button>
 
-      {/* ✅ Loading */}
-      {loading && (
-        <p style={{ marginTop: "20px" }}>
-          ⏳ Loading prediction...
-        </p>
-      )}
+      {loading && <p style={{ marginTop: "20px" }}>⏳ Loading prediction...</p>}
 
-      {/* ✅ Prediction Result */}
       {data && (
-
         <div style={{ marginTop: "30px" }}>
-
-          <h2>
-            📈 Trend:{" "}
-            {data.trend === "UP"
-              ? "🟢 UP"
-              : "🔴 DOWN"}
-          </h2>
-
+          <h2>📈 Trend: {data.trend === "UP" ? "🟢 UP" : "🔴 DOWN"}</h2>
           <h2>
             💰 Current Price: $
-            {!isNaN(
-              Number(data.current_price)
-            )
-              ? Number(
-                data.current_price
-              ).toFixed(2)
+            {!isNaN(Number(data.current_price))
+              ? Number(data.current_price).toFixed(2)
               : "0.00"}
           </h2>
-
-          <h2>
-            🎯 Signal:{" "}
-            {data.signal === "BUY"
-              ? "🟢 BUY"
-              : "🔴 SELL"}
-          </h2>
-
-          <h3>
-            🔥 Confidence:{" "}
-            {data.confidence ?? 0}%
-          </h3>
-
-          <h3>
-            📊 RSI:{" "}
-            {data.rsi ?? "N/A"}
-          </h3>
-
-          <h3>
-            🚦 RSI Status:{" "}
-            {data.rsi_signal ?? "N/A"}
-          </h3>
-
-          <p>
-            🧠 Reason:{" "}
-            {data.reason ??
-              "No analysis available"}
-          </p>
-
+          <h2>🎯 Signal: {data.signal === "BUY" ? "🟢 BUY" : "🔴 SELL"}</h2>
+          <h3>🔥 Confidence: {data.confidence ?? 0}%</h3>
+          <h3>📊 RSI: {data.rsi ?? "N/A"}</h3>
+          <h3>🚦 RSI Status: {data.rsi_signal ?? "N/A"}</h3>
+          {/* ✅ SMA Values */}
+          <h3>📉 SMA20: {data.sma20 ?? "N/A"}</h3>
+          <h3>📉 SMA50: {data.sma50 ?? "N/A"}</h3>
+          <p>🧠 Reason: {data.reason ?? "No analysis available"}</p>
           <p
             style={{
-              color:
-                data.signal === "BUY"
-                  ? "#4ade80"
-                  : "#ff4d4f",
-              fontWeight: "bold"
+              color: data.signal === "BUY" ? "#4ade80" : "#ff4d4f",
+              fontWeight: "bold",
             }}
           >
-            ⚠️ Alert:{" "}
-            {data.alert ??
-              "No alerts"}
+            ⚠️ Alert: {data.alert ?? "No alerts"}
           </p>
 
-          {/* ✅ Chart */}
+          {/* ✅ Charts */}
           <div
             style={{
               marginTop: "30px",
               background: "#0f172a",
               padding: "20px",
-              borderRadius: "12px"
+              borderRadius: "12px",
             }}
           >
-
+            {/* Candlestick Chart */}
             <Chart
-              options={
-                candlestickData.options
-              }
-              series={
-                candlestickData.series
-              }
+              options={candlestickData.options}
+              series={candlestickData.series}
               type="candlestick"
               height={400}
-              const predictionChart={
-                labels: data?.predictions
-                ? data.predictions.map((_, i) => `Day ${i + 1}`)
-            : [],
-            datasets: [
-            {
-              label: "AI Prediction",
-            data: data?.predictions || [],
+            />
+
+            {/* Prediction Line Chart */}
+            <div
+              style={{
+                marginTop: "30px",
+                background: "#0f172a",
+                padding: "20px",
+                borderRadius: "12px",
+              }}
+            >
+              <h3>📈 AI 14-Day Prediction</h3>
+              <Line
+                data={predictionChart}
+                options={{
+                  responsive: true,
+                  plugins: {
+                    legend: {
+                      labels: { color: "white" },
+                    },
                   },
-            ],
-              };
+                  scales: {
+                    x: { ticks: { color: "white" } },
+                    y: { ticks: { color: "white" } },
+                  },
+                }}
               />
-
+            </div>
           </div>
-
         </div>
       )}
 
-      {/* ✅ Watchlist */}
       <div style={{ marginTop: "40px" }}>
-
         <h3>⭐ Watchlist</h3>
-
         <ul>
-
-          {watchlist.map(
-            (item, index) => (
-
-              <li
-                key={index}
-                style={{
-                  cursor: "pointer",
-                  marginTop: "10px",
-                  fontSize: "18px"
-                }}
-                onClick={() => {
-                  setTicker(item);
-                  getPrediction(item);
-                }}
-              >
-                {item}
-              </li>
-            )
-          )}
-
+          {watchlist.map((item, index) => (
+            <li
+              key={index}
+              style={{
+                cursor: "pointer",
+                marginTop: "10px",
+                fontSize: "18px",
+              }}
+              onClick={() => {
+                setTicker(item);
+                getPrediction(item);
+              }}
+            >
+              {item}
+            </li>
+          ))}
         </ul>
-
       </div>
-
     </div>
   );
 }
 
-export default App; 
+export default App;
