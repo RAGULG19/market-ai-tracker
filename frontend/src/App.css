@@ -1,6 +1,6 @@
 body {
   background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: white;
+  color: #ffffff;
   font-family: "Poppins", sans-serif;
   margin: 0;
   padding: 0;
@@ -18,6 +18,10 @@ body {
   background: linear-gradient(to right, #22c55e, #3b82f6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
+  /* ✅ Added for Firefox support */
+  color: transparent;
+  /* ✅ Ensures gradient text works everywhere */
 }
 
 .input-section input {
@@ -26,16 +30,19 @@ body {
   border: none;
   width: 300px;
   margin-right: 10px;
+  outline: none;
+  /* ✅ Prevents default blue outline */
 }
 
 .predict-btn {
   padding: 12px 20px;
   border-radius: 8px;
   background: #22c55e;
-  color: white;
+  color: #ffffff;
   border: none;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.3s ease;
+  /* ✅ Smooth hover effect */
 }
 
 .predict-btn:hover {
