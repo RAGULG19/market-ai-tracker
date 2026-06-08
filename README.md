@@ -1,7 +1,6 @@
-# 📊 Market AI Tracker
+<img width="1866" height="911" alt="Prediction Result Screenshot" src="https://github.com/user-attachments/assets/e56198bc-e113-4690-ad7c-3caad5ad7a46" /><img width="1881" height="923" alt="Candlestick Chart Screenshot" src="https://github.com/user-attachments/assets/e7201614-3d26-4bff-b634-97eb9dbdbfdf" /># 📊 Market AI Tracker
 
-An AI-powered stock market prediction dashboard built with **React (frontend)** and **Flask (backend)**.  
-This project combines **technical indicators (RSI, SMA20, SMA50)** with **AI predictions** to provide professional trading insights.
+An AI-powered stock market analytics platform that combines technical indicators (RSI, SMA20, SMA50) with machine learning-based trend forecasting to provide actionable trading insights.
 
 ---
 
@@ -11,6 +10,10 @@ This project combines **technical indicators (RSI, SMA20, SMA50)** with **AI pre
 - 🔔 Buy/Sell signals with alerts
 - 🎨 Modern UI with gradient theme and responsive design
 - 🌐 Deployed on **Vercel (frontend)** and **Render (backend)**
+- 📊 RSI-based momentum analysis
+- 📈 SMA20 & SMA50 crossover detection
+- 🎯 Confidence score for AI predictions
+- 📉 Historical market trend visualization
 
 ---
 
@@ -22,32 +25,72 @@ This project combines **technical indicators (RSI, SMA20, SMA50)** with **AI pre
 
 ---
 
+## 🏗️ Project Architecture
+Architecture
+
+User → React Frontend → Flask API → yFinance Data
+                              ↓
+                    Technical Indicators
+                              ↓
+                       AI Prediction
+                              ↓
+                    Dashboard Visualization
+
+---
+
 ## 📷 Screenshots
-(Add screenshots of your dashboard here)
+
+### Dashboard
+
+<img width="1911" height="929" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/df491a9c-9ada-403a-8401-f25e9cd6c5ea" />
+
+
+
+### AI Prediction
+
+<img width="1866" height="911" alt="Prediction Result Screenshot" src="https://github.com/user-attachments/assets/d33a78b7-a57a-4a7b-9781-632679c07a8d" />
+
+
+
+### Candlestick Chart
+
+<img width="1881" height="923" alt="Candlestick Chart Screenshot" src="https://github.com/user-attachments/assets/2f63f4c2-c533-41d2-af49-916dd84595c0" />
+
+
+
 
 ---
 
 ## 🔗 Live Demo
-- **Frontend (Dashboard):** [Vercel Link](https://your-vercel-link.vercel.app)  
-- **Backend (API):** [Render Link](https://your-render-link.onrender.com)  
-- **Source Code:** [GitHub Repo](https://github.com/YourUsername/Market-AI-Tracker)
+
+- Frontend Dashboard: https://market-ai-tracker.vercel.app
+- Backend API: https://market-ai-tracker.onrender.com
+- GitHub Repository: https://github.com/RAGULG19/Market-AI-Tracker
+  
+---
+
+ 
+## 🚀 Future Enhancements
+
+Future Enhancements
+
+- Real-time stock streaming
+- Portfolio management
+- News sentiment analysis
+- Deep learning models (LSTM)
+- Multi-stock comparison
+
 
 ---
+
+
 
 # ⚙️ Installation & Setup
 
 # 1. Clone the repository
 ```bash
-git clone https://github.com/YourUsername/Market-AI-Tracker.git
+git clone https://github.com/RAGULG19/Market-AI-Tracker.git
 cd Market-AI-Tracker
-
-----
-
-## 📷 Screenshots
-
-Here’s a preview of the Market AI Tracker dashboard:
-
-![Dashboard Preview](frontend/public/dashboard-preview.png)
 
 ---
 
