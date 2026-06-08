@@ -35,6 +35,7 @@ User → React Frontend → Flask API → yFinance Data
                               ↓
                     Dashboard Visualization
 
+
 ---
 
 ## 📷 Screenshots
