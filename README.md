@@ -1,4 +1,4 @@
-<img width="1866" height="911" alt="Prediction Result Screenshot" src="https://github.com/user-attachments/assets/e56198bc-e113-4690-ad7c-3caad5ad7a46" /><img width="1881" height="923" alt="Candlestick Chart Screenshot" src="https://github.com/user-attachments/assets/e7201614-3d26-4bff-b634-97eb9dbdbfdf" /># 📊 Market AI Tracker
+
 
 An AI-powered stock market analytics platform that combines technical indicators (RSI, SMA20, SMA50) with machine learning-based trend forecasting to provide actionable trading insights.
 
