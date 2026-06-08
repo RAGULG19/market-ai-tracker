@@ -26,7 +26,6 @@ An AI-powered stock market analytics platform that combines technical indicators
 ---
 
 ## 🏗️ Project Architecture
-Architecture
 
 User → React Frontend → Flask API → yFinance Data
                               ↓
@@ -72,8 +71,6 @@ User → React Frontend → Flask API → yFinance Data
  
 ## 🚀 Future Enhancements
 
-Future Enhancements
-
 - Real-time stock streaming
 - Portfolio management
 - News sentiment analysis
@@ -84,15 +81,14 @@ Future Enhancements
 ---
 
 
+## ⚙️ Installation & Setup
 
-# ⚙️ Installation & Setup
+### 1. Clone the repository
 
-# 1. Clone the repository
 ```bash
 git clone https://github.com/RAGULG19/Market-AI-Tracker.git
 cd Market-AI-Tracker
-
----
+```
 
 ## 👨‍💻 Author
 
