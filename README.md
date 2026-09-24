@@ -1,108 +1,160 @@
+# Market AI Tracker
 
+**AI-powered stock market analytics platform** — advanced technical analysis, explainable ML forecasting, buy/sell/hold signals, news sentiment, multi-stock comparison and portfolio tracking.
 
-An AI-powered stock market analytics platform that combines technical indicators (RSI, SMA20, SMA50) with machine learning-based trend forecasting to provide actionable trading insights.
+> **AI-generated market analysis for informational purposes only. Not financial advice.**
 
----
-
-## 🚀 Features
-- 📈 **Candlestick Chart** with SMA20 & SMA50 overlays
-- 🤖 **AI Prediction Line Chart** with confidence levels
-- 🔔 Buy/Sell signals with alerts
-- 🎨 Modern UI with gradient theme and responsive design
-- 🌐 Deployed on **Vercel (frontend)** and **Render (backend)**
-- 📊 RSI-based momentum analysis
-- 📈 SMA20 & SMA50 crossover detection
-- 🎯 Confidence score for AI predictions
-- 📉 Historical market trend visualization
+![Interface preview](frontend/public/dashboard-preview.png)
 
 ---
 
-## 🛠️ Tech Stack
-- **Frontend:** React.js, Chart.js, ApexCharts, CSS3
-- **Backend:** Flask, yFinance, scikit-learn
-- **Deployment:** Vercel (UI), Render (API)
-- **Version Control:** GitHub
+## Features
 
----
+- 🔍 **Advanced stock search** — debounced autocomplete by company name / ticker / symbol, recent + popular picks, curated Indian (`.NS`/`.BO`), US, ETF, gold and index lists
+- 🇮🇳 **Indian markets** — NSE/BSE stocks, ETFs, gold instruments, NIFTY / BANKNIFTY / SENSEX where the provider supports them
+- 🌎 **Global markets** — major US stocks & ETFs via the same data provider; invalid symbols get a clear, honest error (never faked data)
+- 📊 **Technical indicators** — RSI, SMA 20/50/200, EMA 20/50/200, MACD (+signal/histogram), Bollinger Bands, ATR, Stochastic, OBV, volume average, support/resistance, annualized volatility
+- 📈 **Professional charts** — candlestick / line / area, toggleable overlays, separate RSI / MACD / volume panels, ranges 1D→5Y, zoom & pan (ApexCharts), forecast chart with 95% band (Chart.js)
+- 🤖 **Explainable ML forecasting** — Linear Regression vs Random Forest vs Gradient Boosting with **purged time-series cross-validation**; real MAE / RMSE / MAPE / directional accuracy, naive baseline and skill ratio reported honestly
+- 🎯 **Defensible uncertainty** — 95% prediction interval from out-of-fold residual σ; model confidence is a documented composite score, **not** a probability
+- 🔔 **Explainable BUY / SELL / HOLD signals** — rule-based with ✓ supporting and ⚠ conflicting factors
+- 📰 **News + sentiment** — real Yahoo Finance headlines, transparent lexicon scoring, clean "unavailable" state
+- 📊 **Multi-stock comparison** — up to 6 instruments across price, technicals, forecast and signal
+- 💼 **Portfolio tracking** — quantity + buy price → investment, value, P/L, allocation (localStorage only; no credentials)
+- 📱 **Responsive design** — desktop, laptop, tablet, mobile; toast errors, loading skeletons, accessible markup
 
-## 🏗️ Project Architecture
+## Architecture
 
-User → React Frontend → Flask API → yFinance Data
-                              ↓
-                    Technical Indicators
-                              ↓
-                       AI Prediction
-                              ↓
-                    Dashboard Visualization
-
-
----
-
-## 📷 Screenshots
-
-### Dashboard
-
-<img width="1911" height="929" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/df491a9c-9ada-403a-8401-f25e9cd6c5ea" />
-
-
-
-### AI Prediction
-
-<img width="1866" height="911" alt="Prediction Result Screenshot" src="https://github.com/user-attachments/assets/d33a78b7-a57a-4a7b-9781-632679c07a8d" />
-
-
-
-### Candlestick Chart
-
-<img width="1881" height="923" alt="Candlestick Chart Screenshot" src="https://github.com/user-attachments/assets/2f63f4c2-c533-41d2-af49-916dd84595c0" />
-
-
-
-
----
-
-## 🔗 Live Demo
-
-- Frontend Dashboard: https://market-ai-tracker.vercel.app
-- Backend API: https://market-ai-tracker.onrender.com
-- GitHub Repository: https://github.com/RAGULG19/Market-AI-Tracker
-  
----
-
- 
-## 🚀 Future Enhancements
-
-- Real-time stock streaming
-- Portfolio management
-- News sentiment analysis
-- Deep learning models (LSTM)
-- Multi-stock comparison
-
-
----
-
-
-## ⚙️ Installation & Setup
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/RAGULG19/Market-AI-Tracker.git
-cd Market-AI-Tracker
+```
+market ai traker/
+├── backend/                 # Flask REST API (deployed on Render)
+│   ├── app.py               # routes + error handling (legacy /predict kept)
+│   ├── config.py            # env vars, symbol aliases, curated watchlists
+│   ├── services/
+│   │   ├── market_data.py   # yfinance access + TTL cache + overview
+│   │   ├── indicators.py    # ta/pandas indicator computation
+│   │   ├── ml.py            # features, purged TSCV, models, uncertainty
+│   │   ├── signals.py       # explainable rule-based signal
+│   │   ├── news.py          # real headlines + lexicon sentiment
+│   │   └── search.py        # curated + Yahoo symbol search
+│   └── requirements.txt
+└── frontend/                # React SPA (deployed on Vercel)
+    └── src/
+        ├── App.js           # shell: nav, search, routing
+        ├── components/      # charts, overview, signal, news, tables…
+        ├── pages/           # Dashboard, Markets, Compare, Portfolio…
+        ├── services/api.js  # single Axios layer + errors + cache
+        └── hooks/           # useDebounce, useLocalStorage
 ```
 
-## 👨‍💻 Author
+**Data flow:** UI → Axios service layer → Flask (cache) → Yahoo Finance (yfinance) → indicators/ML/signals computed server-side → JSON → charts/components.
 
-**Ragul G**  
-B.Tech AI & Data Science, RVS Technical Campus, Coimbatore  
+## Tech stack
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/ragulg07)  
-[![Email](https://img.shields.io/badge/Email-Contact-red?logo=gmail)](mailto:ragulg45678@gmail.com)
+| Layer | Technologies |
+|---|---|
+| Frontend | React 19, ApexCharts, Chart.js, Axios, CRA |
+| Backend | Flask, flask-cors, gunicorn |
+| Data | yfinance (Yahoo Finance, delayed quotes) |
+| ML/Data | scikit-learn, pandas, numpy, `ta` |
+| Deploy | Vercel (frontend), Render (backend) |
 
+## AI/ML methodology
 
----
+1. **Task** — forecast total return over the next *h* trading days (default 14) from features computed only with data up to day *t*.
+2. **Features (18)** — lagged returns (1/5/10/20d), rolling mean/volatility, RSI-14 + delta, MACD histogram + delta, distance from SMA20/SMA50/EMA20, volume z-score, 20d range position, ATR%, day-of-week.
+3. **Models** — Linear Regression (baseline), Random Forest (150 trees, depth 6), Gradient Boosting (120 estimators, lr 0.05). Selected by lowest validation MAE.
+4. **Validation** — `TimeSeriesSplit(5)`, expanding window, **no shuffling**, with a purged gap of *h* rows so overlapping forward-return windows cannot leak across folds. A naive "0% change" baseline is reported alongside.
+5. **Metrics** — MAE / RMSE (price units), MAPE (%), directional accuracy (%), residual σ, plus `skill_vs_naive_mae` (naive MAE ÷ model MAE; < 1 means the model does **not** beat no-change and is labelled accordingly).
 
-## 📜 License
-This project is licensed under the Apache 2.0 License.
- 
----
+### Technical indicators
+RSI(14), SMA 20/50/200, EMA 20/50/200, MACD(12,26,9), Bollinger(20,2), ATR(14), Stochastic %K/%D(14,3), OBV, volume SMA20, rolling support/resistance (20/60d), annualized volatility (20d).
+
+### Confidence & uncertainty
+- **Uncertainty** = point forecast ± 1.96 × σ, where σ is the std of purged out-of-fold residuals (widened with √time for intermediate days) → a 95% prediction interval.
+- **Model confidence (0–100)** = `100 × (0.40·dir + 0.35·mape + 0.25·interval)` with each component clipped to [0,1] from time-series validation. It is a transparent composite score — **not** a probability of profit. The formula is returned in every `/predict` response.
+
+## Installation
+
+**Backend** (Python 3.10+):
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python app.py                                        # http://localhost:10000
+```
+
+**Frontend** (Node 18+):
+```bash
+cd frontend
+npm install
+npm start          # dev server on :3000
+npm run build      # production build
+npm test           # unit tests
+```
+
+## Environment variables
+
+| File | Variable | Purpose |
+|---|---|---|
+| `frontend/.env` | `REACT_APP_API_URL` | Backend base URL (see `frontend/.env.example`) |
+| `backend/.env` | `PORT` | Server port (default 10000) |
+| `backend/.env` | `CORS_ORIGINS` | Comma-separated allowed origins (default `*`) |
+| `backend/.env` | `CACHE_TTL_*` | Cache lifetimes (history/overview/predict) |
+
+No secret API keys are required (Yahoo Finance public endpoints). Never commit `.env` files — `.gitignore` covers them.
+
+## API documentation
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/` · `/health` | Health checks |
+| GET | `/search?q=` | Symbol search (curated + Yahoo) |
+| GET | `/watchlists` | Curated quick-pick lists |
+| GET | `/stock/<symbol>` | Overview + indicators + signal |
+| GET | `/history/<symbol>?range=` | OHLCV (`1d,5d,1mo,3mo,6mo,1y,2y,5y`) |
+| GET | `/indicators/<symbol>?range=` | Indicator values + aligned series |
+| GET | `/predict/<symbol>?days=` | Forecast, metrics, uncertainty |
+| GET | `/signal/<symbol>` | Explainable signal |
+| GET | `/news/<symbol>` · `/news?q=` | Headlines + sentiment |
+| GET | `/compare?symbols=A,B` | Comparison snapshot (2–6 symbols) |
+| GET | `/predict?ticker=` | **Legacy** endpoint (kept for compatibility) |
+
+Errors are JSON: `{ "error": "human-readable message" }` with proper HTTP status (400/404/502).
+
+## Deployment
+
+- **Frontend → Vercel**: build command `npm run build`, output `build`, set `REACT_APP_API_URL` to the Render URL.
+- **Backend → Render**: start command `gunicorn app:app` (root directory `backend/`), set `CORS_ORIGINS` to the Vercel domain for a strict policy.
+- Configure values in the dashboards; keep `.env` files out of git.
+
+## Limitations
+
+- Market data is **delayed**, from Yahoo Finance; no real-time or tick data.
+- Model forecasts are statistical estimates — short-horizon equity returns are inherently noisy; metrics are reported honestly and may show the model does not beat the naive baseline.
+- News sentiment is keyword-lexicon based (labelled as such), not a trained transformer model.
+- Portfolio data stays in the browser; no accounts or cloud sync.
+- Provider rate limits may slow requests; responses are cached (30 min forecasts, 5 min history, 60 s quotes).
+
+## Disclaimer
+
+This is an analytics and educational project. Nothing here is financial advice, a recommendation, or a guarantee of returns. Predictions, signals, confidence scores and sentiment labels are informational outputs of statistical models and rule systems.
+
+## Future enhancements
+
+- Auth + cloud portfolio sync, price alerts, watchlist trends
+- Walk-forward model retraining schedules and optional XGBoost/LightGBM
+- Additional news providers and an NLP sentiment model
+- PWA/offline caching, i18n, INR/USD display toggle
+
+## Screenshots
+
+The image at the top shows the interface style. After deploying the upgrade, capture the Dashboard, Compare, Portfolio and Analytics pages here.
+
+## Author
+
+**Ragul G**
+B.Tech Artificial Intelligence & Data Science
+RVS Institute of Technology, Coimbatore
+Expected Graduation: 2027
+

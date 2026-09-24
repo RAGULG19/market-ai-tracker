@@ -1,156 +1,72 @@
-import { useState } from "react";
-import axios from "axios";
-import Chart from "react-apexcharts";
-import { Line } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
+import { useCallback, useState } from "react";
 import "./App.css";
+import "./styles/charts.css";
+import Navbar from "./components/Navbar";
+import SearchBar from "./components/SearchBar";
+import ToastHost from "./components/Toast";
+import DashboardPage from "./pages/DashboardPage";
+import MarketsPage from "./pages/MarketsPage";
+import ComparePage from "./pages/ComparePage";
+import PortfolioPage from "./pages/PortfolioPage";
+import NewsPage from "./pages/NewsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import SettingsPage from "./pages/SettingsPage";
+import useLocalStorage from "./hooks/useLocalStorage";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+const DEFAULT_SYMBOL = "TCS.NS";
 
+/**
+ * Application shell: navigation, global search, lightweight state-based
+ * routing (no extra dependency), recent-search persistence.
+ */
 function App() {
-  const [ticker, setTicker] = useState("");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const API_URL = "https://market-ai-tracker.onrender.com";
+  const [route, setRoute] = useState("dashboard");
+  const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
+  const [recents, setRecents] = useLocalStorage("mat_recents", []);
+  const [compareSymbols, setCompareSymbols] = useLocalStorage(
+    "mat_compare",
+    ["TCS.NS", "INFY.NS", "RELIANCE.NS"]
+  );
 
-  const getPrediction = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`${API_URL}/predict?ticker=${ticker}`);
-      setData(res.data);
-    } catch (err) {
-      alert("Error fetching data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const candlestickData = {
-    series: [
-      {
-        data:
-          data?.ohlc?.open?.map((_, index) => ({
-            x: `Day ${index + 1}`,
-            y: [
-              Number(data.ohlc.open[index]),
-              Number(data.ohlc.high[index]),
-              Number(data.ohlc.low[index]),
-              Number(data.ohlc.close[index]),
-            ],
-          })) || [],
-      },
-    ],
-    options: {
-      chart: {
-        type: "candlestick",
-        height: 350,
-        background: "#0f172a",
-        toolbar: { show: true },
-      },
-      theme: { mode: "dark" },
-      xaxis: { type: "category" },
-      yaxis: { tooltip: { enabled: true } },
-      grid: { borderColor: "#334155" },
+  const openSymbol = useCallback(
+    (sym) => {
+      setSymbol(sym);
+      setRecents((prev) => [sym, ...prev.filter((s) => s !== sym)].slice(0, 8));
+      setRoute("dashboard");
     },
-  };
-
-  const predictionChart = {
-    labels: data?.predictions?.map((_, i) => `Day ${i + 1}`) || [],
-    datasets: [
-      {
-        label: "AI Prediction",
-        data: data?.predictions || [],
-        borderColor: "#22c55e",
-        backgroundColor: "rgba(34,197,94,0.3)",
-        tension: 0.4,
-        fill: true,
-      },
-    ],
-  };
+    [setRecents]
+  );
 
   return (
-    <div className="app-container">
-      <h1 className="title">📊 Market AI Tracker</h1>
+    <div className="app">
+      <Navbar route={route} onNavigate={setRoute}>
+        <SearchBar onSelect={openSymbol} recents={recents} />
+      </Navbar>
 
-      <div className="input-section">
-        <input
-          type="text"
-          value={ticker}
-          placeholder="Enter Stock (TCS, INFY, AAPL...)"
-          onChange={(e) => setTicker(e.target.value)}
-        />
-        <button className="predict-btn" onClick={getPrediction}>
-          Predict
-        </button>
-      </div>
+      <main className="main" id="main">
+        {route === "dashboard" && <DashboardPage symbol={symbol} />}
+        {route === "markets" && <MarketsPage onOpen={openSymbol} />}
+        {route === "compare" && (
+          <ComparePage
+            symbols={compareSymbols}
+            setSymbols={setCompareSymbols}
+            onOpen={openSymbol}
+          />
+        )}
+        {route === "portfolio" && <PortfolioPage />}
+        {route === "news" && <NewsPage />}
+        {route === "analytics" && <AnalyticsPage symbol={symbol} />}
+        {route === "settings" && <SettingsPage />}
+      </main>
 
-      {loading && <p className="loading">⏳ Fetching data...</p>}
+      <footer className="footer">
+        <p>
+          AI-generated market analysis for informational purposes only. Not
+          financial advice. · Market data by Yahoo Finance.
+        </p>
+      </footer>
 
-      {data && (
-        <div className="result-section">
-          <div className="info-cards">
-            <div className="card trend">
-              <h3>Trend: {data.trend === "UP" ? "🟢 UP" : "🔴 DOWN"}</h3>
-            </div>
-            <div className="card price">
-              <h3>💰 Price: ${data.current_price}</h3>
-            </div>
-            <div className="card signal">
-              <h3>🎯 Signal: {data.signal}</h3>
-            </div>
-            <div className="card rsi">
-              <h3>📊 RSI: {data.rsi}</h3>
-              <p>{data.rsi_signal}</p>
-            </div>
-            <div className="card sma">
-              <h3>📉 SMA20: {data.sma20}</h3>
-              <h3>📉 SMA50: {data.sma50}</h3>
-            </div>
-          </div>
-
-          <p className="reason">🧠 {data.reason}</p>
-          <p className="alert">{data.alert}</p>
-
-          <div className="chart-section">
-            <Chart
-              options={candlestickData.options}
-              series={candlestickData.series}
-              type="candlestick"
-              height={400}
-            />
-            <Line
-              data={predictionChart}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: { labels: { color: "white" } },
-                },
-                scales: {
-                  x: { ticks: { color: "white" } },
-                  y: { ticks: { color: "white" } },
-                },
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <ToastHost />
     </div>
   );
 }
