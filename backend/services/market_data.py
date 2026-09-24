@@ -69,12 +69,8 @@ def flatten_ohlc(raw):
     return df
 
 
-def download(symbol, period="1y", interval="1d"):
-    """Download OHLCV history (cached). Raises ApiError on failure/empty."""
-    key = ("hist", symbol, period, interval)
-    cached = _cache_get(key, CACHE_TTL_HISTORY)
-    if cached is not None:
-        return cached
+def _try_download(symbol, period, interval):
+    """One download attempt. Returns (DataFrame, error_message)."""
     try:
         raw = yf.download(
             tickers=symbol,
@@ -85,15 +81,66 @@ def download(symbol, period="1y", interval="1d"):
             auto_adjust=True,
         )
     except Exception as exc:
-        raise ApiError("Market data provider request failed: %s" % exc, 502)
-    df = flatten_ohlc(raw)
+        return None, str(exc)
+    return flatten_ohlc(raw), None
+
+
+def _symbol_profile_exists(symbol):
+    """True if the provider knows the symbol (even if prices are missing)."""
+    try:
+        info = yf.Ticker(symbol).info or {}
+    except Exception:
+        raise  # provider/network problem — caller maps this to 502
+    return bool(
+        info.get("shortName") or info.get("longName") or info.get("symbol")
+    )
+
+
+def download(symbol, period="1y", interval="1d"):
+    """Download OHLCV history (cached). Raises ApiError on failure/empty.
+
+    Empty responses are retried once (yfinance occasionally returns empty
+    on cold connections), then classified: provider knows the symbol but
+    sent no prices -> 502 transient; provider doesn't know it -> 404.
+    """
+    key = ("hist", symbol, period, interval)
+    cached = _cache_get(key, CACHE_TTL_HISTORY)
+    if cached is not None:
+        return cached
+
+    df, err = _try_download(symbol, period, interval)
+    if df is None:
+        raise ApiError("Market data provider request failed: %s" % err, 502)
     if df.empty:
+        time.sleep(1.0)  # brief backoff before the single retry
+        df, err = _try_download(symbol, period, interval)
+        if df is None:
+            raise ApiError(
+                "Market data provider request failed: %s" % err, 502
+            )
+
+    if df.empty:
+        try:
+            known = _symbol_profile_exists(symbol)
+        except Exception as exc:
+            raise ApiError(
+                "The data provider could not be reached right now "
+                "(%s). Please try again shortly." % exc,
+                502,
+            )
+        if known:
+            raise ApiError(
+                'The data provider returned no price data for "%s" right '
+                "now. Please try again shortly." % symbol,
+                502,
+            )
         raise ApiError(
             'No data found for "%s". The symbol may be invalid or not '
             "supported by the data provider. Indian symbols need a .NS "
             "(NSE) or .BO (BSE) suffix, e.g. TCS.NS." % symbol,
             404,
         )
+
     _cache_set(key, df)
     return df
 

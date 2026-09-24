@@ -78,27 +78,32 @@ export default function PriceChart({
 
   const indSeries = indicators ? indicators.series : null;
   if (indSeries) {
+    /* align() is hoisted out of the map callback — building the date
+       lookup once per series keeps 5Y ranges (1250+ points) fast. */
+    const alignedCache = {};
+    const alignedFor = (key) => {
+      if (!(key in alignedCache)) {
+        alignedCache[key] = align(indSeries[key], indDates, dates);
+      }
+      return alignedCache[key];
+    };
     OVERLAYS.forEach((ov) => {
       if (!overlays[ov.id]) return;
       if (ov.id === "bb") {
         ["bb_upper", "bb_lower"].forEach((key, k) => {
+          const vals = alignedFor(key);
           series.push({
             name: k === 0 ? "BB Upper" : "BB Lower",
             type: "line",
-            data: xs.map((x, i) => ({
-              x,
-              y: align(indSeries[key], indDates, dates)[i],
-            })),
+            data: xs.map((x, i) => ({ x, y: vals[i] })),
           });
         });
       } else if (indSeries[ov.id]) {
+        const vals = alignedFor(ov.id);
         series.push({
           name: ov.label,
           type: "line",
-          data: xs.map((x, i) => ({
-            x,
-            y: align(indSeries[ov.id], indDates, dates)[i],
-          })),
+          data: xs.map((x, i) => ({ x, y: vals[i] })),
         });
       }
     });
