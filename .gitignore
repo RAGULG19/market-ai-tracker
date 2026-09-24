@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Environment secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# Build output
+frontend/build/
+build/
+dist/
+
+# Logs / OS / IDE
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.idea/
+coverage/
+
+# NOTE: frontend/.env.example IS committed (template only, no secrets).
