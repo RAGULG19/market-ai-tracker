@@ -60,35 +60,50 @@ const get = (url, params) => client.get(url, { params }).then((r) => r.data);
 
 /* Small TTL cache so re-visiting a page does not re-hit the backend. */
 const cache = new Map();
+const pending = new Map();
 const cached = (key, ttlMs, fetcher) => {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.t < ttlMs) return Promise.resolve(hit.v);
-  return fetcher().then((v) => {
+  if (pending.has(key)) return pending.get(key);
+  const request = fetcher().then((v) => {
     cache.set(key, { t: Date.now(), v });
     return v;
+  }).finally(() => {
+    pending.delete(key);
   });
+  pending.set(key, request);
+  return request;
 };
+
+const cachedGet = (key, ttlMs, url, params) =>
+  cached(key, ttlMs, () => get(url, params));
 
 export const api = {
   health: () => get("/health"),
-  stock: (symbol) => get(`/stock/${encodeURIComponent(symbol)}`),
+  stock: (symbol) =>
+    cachedGet(`stock:${symbol}`, 30000, `/stock/${encodeURIComponent(symbol)}`),
   history: (symbol, range = "1y") =>
-    get(`/history/${encodeURIComponent(symbol)}`, { range }),
+    cachedGet(`history:${symbol}:${range}`, 300000, `/history/${encodeURIComponent(symbol)}`, { range }),
   indicators: (symbol, range = "1y") =>
-    get(`/indicators/${encodeURIComponent(symbol)}`, { range }),
+    cachedGet(`indicators:${symbol}:${range}`, 300000, `/indicators/${encodeURIComponent(symbol)}`, { range }),
   predict: (symbol, days = 14) =>
-    get(`/predict/${encodeURIComponent(symbol)}`, { days }),
-  signal: (symbol) => get(`/signal/${encodeURIComponent(symbol)}`),
+    cachedGet(`predict:${symbol}:${days}`, 1800000, `/predict/${encodeURIComponent(symbol)}`, { days }),
+  signal: (symbol) =>
+    cachedGet(`signal:${symbol}`, 30000, `/signal/${encodeURIComponent(symbol)}`),
   news: (symbol, limit = 8) =>
-    get(`/news/${encodeURIComponent(symbol)}`, { limit }),
-  marketNews: (query, limit = 12) => get("/news", { q: query, limit }),
+    cachedGet(`news:${symbol}:${limit}`, 120000, `/news/${encodeURIComponent(symbol)}`, { limit }),
+  marketNews: (query, limit = 12) =>
+    cachedGet(`market-news:${query}:${limit}`, 120000, "/news", { q: query, limit }),
   search: (query, limit = 10) =>
     cached(`search:${query}:${limit}`, 60000, () =>
       get("/search", { q: query, limit })
     ),
   watchlists: () => cached("watchlists", 86400000, () => get("/watchlists")),
   compare: (symbols, days = 14) =>
-    get("/compare", { symbols: symbols.join(","), days }),
+    cachedGet(`compare:${symbols.join(",")}:${days}`, 30000, "/compare", {
+      symbols: symbols.join(","),
+      days,
+    }),
 };
 
 export default api;

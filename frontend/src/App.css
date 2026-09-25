@@ -61,6 +61,22 @@ body {
   flex: 1;
 }
 
+.footer-credit {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+
+.footer-credit a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.footer-credit a:hover,
+.footer-credit a:focus-visible {
+  color: var(--cyan);
+  text-decoration: underline;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -152,4 +168,3 @@ body {
 @import "./styles/search-buttons.css";
 @import "./styles/states.css";
 @import "./styles/panels.css";
-

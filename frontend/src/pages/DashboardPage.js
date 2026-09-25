@@ -44,46 +44,60 @@ export default function DashboardPage({ symbol }) {
     if (!symbol) return;
     setLoading((l) => ({ ...l, main: true }));
     setError(null);
-    Promise.all([
-      api.stock(symbol),
-      api.predict(symbol),
-      api.news(symbol).catch(() => null),
-    ])
-      .then(([stockData, predictData, newsData]) => {
-        setStock(stockData);
-        setForecast(predictData);
-        setNews(newsData);
+    let active = true;
+    api.stock(symbol)
+      .then((data) => {
+        if (active) setStock(data);
       })
       .catch((err) => {
-        setError(err);
-        toast(err.message, "error");
+        if (active) {
+          setError(err);
+          toast(err.message, "error");
+        }
       })
-      .finally(() => setLoading((l) => ({ ...l, main: false })));
+      .finally(() => {
+        if (active) setLoading((l) => ({ ...l, main: false }));
+      });
+    api.predict(symbol)
+      .then((data) => active && setForecast(data))
+      .catch((err) => active && toast(`Forecast unavailable: ${err.message}`, "warning"));
+    api.news(symbol)
+      .then((data) => active && setNews(data))
+      .catch(() => active && setNews(null));
+    return () => {
+      active = false;
+    };
   }, [symbol]);
 
   const loadRange = useCallback(() => {
     if (!symbol) return;
     setLoading((l) => ({ ...l, range: true }));
+    let active = true;
     Promise.all([
       api.history(symbol, range),
       api.indicators(symbol, range).catch(() => null),
     ])
       .then(([hist, ind]) => {
-        setHistory(hist);
-        setIndicatorData(ind);
+        if (active) {
+          setHistory(hist);
+          setIndicatorData(ind);
+        }
       })
       .catch((err) => {
         toast(`Chart data failed: ${err.message}`, "error");
       })
-      .finally(() => setLoading((l) => ({ ...l, range: false })));
+      .finally(() => active && setLoading((l) => ({ ...l, range: false })));
+    return () => {
+      active = false;
+    };
   }, [symbol, range]);
 
   useEffect(() => {
-    loadMain();
+    return loadMain();
   }, [loadMain]);
 
   useEffect(() => {
-    loadRange();
+    return loadRange();
   }, [loadRange]);
 
   if (!symbol) {
@@ -223,4 +237,3 @@ export default function DashboardPage({ symbol }) {
     </div>
   );
 }
-

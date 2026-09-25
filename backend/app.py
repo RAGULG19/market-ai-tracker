@@ -17,6 +17,7 @@ REST-style routes:
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config import (
     CACHE_TTL_PREDICT,
@@ -224,35 +225,41 @@ def compare():
         raise ApiError("You can compare at most 6 symbols at once.", 400)
 
     horizon = _horizon()
-    results, errors = [], []
-    for sym in symbols:
-        try:
-            overview = market_data.get_overview(sym)
-            hist = market_data.download(sym, period="1y", interval="1d")
-            ind = indicators.compute_indicators(hist, interval="1d")
-            forecast = get_forecast(sym, horizon)
-            signal = signals.build_signal(overview, ind, forecast)
-            results.append(
-                {
-                    "symbol": sym,
-                    "name": overview["name"],
-                    "currency": overview["currency"],
-                    "current_price": overview["current_price"],
-                    "change_pct": overview["change_pct"],
-                    "indicators": ind["latest"],
-                    "forecast": {
-                        "model": forecast["model"],
-                        "forecast_price": forecast["forecast_price"],
-                        "expected_change_pct": forecast["expected_change_pct"],
-                        "direction": forecast["direction"],
-                        "model_confidence": forecast["model_confidence"],
-                        "horizon_days": forecast["horizon_days"],
-                    },
-                    "signal": signal,
-                }
-            )
-        except ApiError as exc:
-            errors.append({"symbol": sym, "error": exc.message})
+    def load_comparison(sym):
+        overview = market_data.get_overview(sym)
+        hist = market_data.download(sym, period="1y", interval="1d")
+        ind = indicators.compute_indicators(hist, interval="1d")
+        forecast = get_forecast(sym, horizon)
+        signal = signals.build_signal(overview, ind, forecast)
+        return {
+            "symbol": sym,
+            "name": overview["name"],
+            "currency": overview["currency"],
+            "current_price": overview["current_price"],
+            "change_pct": overview["change_pct"],
+            "indicators": ind["latest"],
+            "forecast": {
+                "model": forecast["model"],
+                "forecast_price": forecast["forecast_price"],
+                "expected_change_pct": forecast["expected_change_pct"],
+                "direction": forecast["direction"],
+                "model_confidence": forecast["model_confidence"],
+                "horizon_days": forecast["horizon_days"],
+            },
+            "signal": signal,
+        }
+
+    results_by_symbol, errors = {}, []
+    with ThreadPoolExecutor(max_workers=min(4, len(symbols))) as executor:
+        futures = {executor.submit(load_comparison, sym): sym for sym in symbols}
+        for future in as_completed(futures):
+            sym = futures[future]
+            try:
+                results_by_symbol[sym] = future.result()
+            except ApiError as exc:
+                errors.append({"symbol": sym, "error": exc.message})
+
+    results = [results_by_symbol[sym] for sym in symbols if sym in results_by_symbol]
     return jsonify({"results": results, "errors": errors})
 
 
@@ -343,4 +350,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=False)
-

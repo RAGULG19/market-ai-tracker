@@ -64,6 +64,13 @@ function App() {
           AI-generated market analysis for informational purposes only. Not
           financial advice. · Market data by Yahoo Finance.
         </p>
+        <p className="footer-credit">
+          Built &amp; Developed by{" "}
+          <a href="https://www.linkedin.com/in/ragulg07" target="_blank" rel="noopener noreferrer">
+            RAGUL G
+          </a>
+          <span> · © 2026 RAGUL G. All rights reserved.</span>
+        </p>
       </footer>
 
       <ToastHost />
