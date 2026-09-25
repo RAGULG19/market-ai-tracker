@@ -1,6 +1,13 @@
 flask
 flask-cors
+gunicorn
+python-dotenv
 yfinance
+# pandas<3 pinned: verified working locally (Smart App Control blocks the
+# newer 3.0.6 binaries) and stable for Render deployment.
+pandas>=2.2,<3
 numpy
-scikit-learn
+# scikit-learn pinned to 1.6.x: verified working locally (Smart App Control
+# blocks newer 1.9 binaries) and stable for Render deployment.
+scikit-learn>=1.6,<1.7
 ta
