@@ -28,42 +28,81 @@ const DEFAULT_OVERLAYS = {
 
 /** Full analysis view for the selected symbol. */
 export default function DashboardPage({ symbol }) {
-  const [stock, setStock] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [summaryIndicators, setSummaryIndicators] = useState(null);
+  const [signal, setSignal] = useState(null);
   const [forecast, setForecast] = useState(null);
   const [news, setNews] = useState(null);
   const [range, setRange] = useState("6mo");
   const [history, setHistory] = useState(null);
   const [indicatorData, setIndicatorData] = useState(null);
+  const [newsError, setNewsError] = useState(null);
+  const [rangeError, setRangeError] = useState(null);
+  const [forecastError, setForecastError] = useState(null);
+  const [quoteError, setQuoteError] = useState(null);
+  const [signalError, setSignalError] = useState(null);
   const [chartType, setChartType] = useState("candlestick");
   const [overlays, setOverlays] = useState(DEFAULT_OVERLAYS);
   const [panels, setPanels] = useState({ rsi: true, macd: true, volume: true });
-  const [loading, setLoading] = useState({ main: true, range: false });
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState({
+    quote: true,
+    signal: true,
+    range: true,
+    forecast: true,
+  });
 
   const loadMain = useCallback(() => {
     if (!symbol) return;
-    setLoading((l) => ({ ...l, main: true }));
-    setError(null);
+    setLoading((l) => ({ ...l, quote: true, signal: true }));
+    setQuoteError(null);
+    setSignalError(null);
+    setOverview(null);
+    setSummaryIndicators(null);
+    setSignal(null);
+    setNews(null);
+    setNewsError(null);
     let active = true;
-    api.stock(symbol)
+    api.quoteSummary(symbol)
       .then((data) => {
-        if (active) setStock(data);
-      })
-      .catch((err) => {
         if (active) {
-          setError(err);
-          toast(err.message, "error");
+          setOverview(data.overview);
+          setSummaryIndicators(data.indicators);
         }
       })
+      .catch((err) => {
+        if (active) setQuoteError(err);
+      })
       .finally(() => {
-        if (active) setLoading((l) => ({ ...l, main: false }));
+        if (active) setLoading((l) => ({ ...l, quote: false }));
       });
-    api.predict(symbol)
-      .then((data) => active && setForecast(data))
-      .catch((err) => active && toast(`Forecast unavailable: ${err.message}`, "warning"));
+    api.signal(symbol)
+      .then((data) => active && setSignal(data))
+      .catch((err) => active && setSignalError(err))
+      .finally(() =>
+        active && setLoading((l) => ({ ...l, signal: false }))
+      );
     api.news(symbol)
       .then((data) => active && setNews(data))
-      .catch(() => active && setNews(null));
+      .catch((err) => {
+        if (active) setNewsError(err);
+      });
+    return () => {
+      active = false;
+    };
+  }, [symbol]);
+
+  const loadForecast = useCallback(() => {
+    if (!symbol) return;
+    setLoading((l) => ({ ...l, forecast: true }));
+    setForecast(null);
+    setForecastError(null);
+    let active = true;
+    api.predict(symbol)
+      .then((data) => active && setForecast(data))
+      .catch((err) => active && setForecastError(err))
+      .finally(() =>
+        active && setLoading((l) => ({ ...l, forecast: false }))
+      );
     return () => {
       active = false;
     };
@@ -72,6 +111,9 @@ export default function DashboardPage({ symbol }) {
   const loadRange = useCallback(() => {
     if (!symbol) return;
     setLoading((l) => ({ ...l, range: true }));
+    setHistory(null);
+    setIndicatorData(null);
+    setRangeError(null);
     let active = true;
     Promise.all([
       api.history(symbol, range),
@@ -84,7 +126,10 @@ export default function DashboardPage({ symbol }) {
         }
       })
       .catch((err) => {
-        toast(`Chart data failed: ${err.message}`, "error");
+        if (active) {
+          setRangeError(err);
+          toast(`Chart data failed: ${err.message}`, "error");
+        }
       })
       .finally(() => active && setLoading((l) => ({ ...l, range: false })));
     return () => {
@@ -97,8 +142,16 @@ export default function DashboardPage({ symbol }) {
   }, [loadMain]);
 
   useEffect(() => {
+    return loadForecast();
+  }, [loadForecast]);
+
+  useEffect(() => {
     return loadRange();
   }, [loadRange]);
+
+  const toggleOverlay = useCallback((id) => {
+    setOverlays((current) => ({ ...current, [id]: !current[id] }));
+  }, []);
 
   if (!symbol) {
     return (
@@ -111,22 +164,26 @@ export default function DashboardPage({ symbol }) {
     );
   }
 
-  if (loading.main && !stock) {
-    return <LoadingState label={`Analyzing ${symbol}…`} rows={4} />;
-  }
-  if (error) return <ErrorState error={error} onRetry={loadMain} />;
-
-  const overview = stock ? stock.overview : null;
   const currency = overview ? overview.currency : "USD";
 
   return (
     <div className="dashboard">
-      {overview && (
-        <StockOverview overview={overview} indicators={stock.indicators} />
+      {quoteError ? (
+        <ErrorState error={quoteError} onRetry={loadMain} />
+      ) : overview ? (
+        <StockOverview
+          overview={overview}
+          indicators={summaryIndicators}
+        />
+      ) : loading.quote ? (
+        <LoadingState label={`Loading ${symbol} quote…`} rows={2} />
+      ) : null}
+      {rangeError && !history && (
+        <ErrorState error={rangeError} onRetry={loadRange} />
       )}
 
       <div className="dashboard-grid">
-        <PriceChart
+        {history ? <PriceChart
           history={history}
           indicators={indicatorData}
           currency={currency}
@@ -135,13 +192,13 @@ export default function DashboardPage({ symbol }) {
           range={range}
           onRangeChange={setRange}
           overlays={overlays}
-          onToggleOverlay={(id) =>
-            setOverlays((o) => ({ ...o, [id]: !o[id] }))
-          }
-        />
+          onToggleOverlay={toggleOverlay}
+        /> : loading.range ? (
+          <LoadingState label={`Loading ${symbol} price history…`} rows={3} />
+        ) : null}
 
         <div className="side-column">
-          {forecast && (
+          {forecast ? (
             <section
               className="card forecast-facts"
               aria-label="Forecast summary"
@@ -201,9 +258,19 @@ export default function DashboardPage({ symbol }) {
               </p>
               <p className="disclaimer">{forecast.disclaimer}</p>
             </section>
-          )}
+          ) : forecastError ? (
+            <ErrorState error={forecastError} onRetry={loadForecast} />
+          ) : loading.forecast ? (
+            <LoadingState label="Calculating forecast…" rows={2} />
+          ) : null}
 
-          {stock && <SignalCard signal={stock.signal} />}
+          {signal ? (
+            <SignalCard signal={signal} />
+          ) : signalError ? (
+            <ErrorState error={signalError} onRetry={loadMain} />
+          ) : loading.signal ? (
+            <LoadingState label="Building market signal…" />
+          ) : null}
         </div>
       </div>
 
@@ -224,16 +291,26 @@ export default function DashboardPage({ symbol }) {
         ))}
       </div>
 
-      <IndicatorPanels indicators={indicatorData} show={panels} />
+      {loading.range && !indicatorData ? (
+        <LoadingState label="Loading technical indicators…" rows={2} />
+      ) : <IndicatorPanels indicators={indicatorData} show={panels} />}
 
       <div className="two-col">
         {forecast && (
           <PredictionChart forecast={forecast} currency={currency} />
         )}
-        <NewsPanel news={news} />
+        {news ? <NewsPanel news={news} /> : newsError ? (
+          <ErrorState error={newsError} />
+        ) : (
+          <LoadingState label="Loading market news…" rows={2} />
+        )}
       </div>
 
-      <IndicatorCards indicators={stock ? stock.indicators : null} />
+      {summaryIndicators ? (
+        <IndicatorCards indicators={summaryIndicators} />
+      ) : loading.quote ? (
+        <LoadingState label="Loading indicator summary…" />
+      ) : null}
     </div>
   );
 }

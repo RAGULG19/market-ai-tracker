@@ -97,12 +97,18 @@ npm test           # unit tests
 
 | File | Variable | Purpose |
 |---|---|---|
-| `frontend/.env` | `REACT_APP_API_URL` | Backend base URL (see `frontend/.env.example`) |
+| `frontend/.env` | `REACT_APP_API_URL` | Backend base URL |
+| `frontend/.env` | `REACT_APP_AUTH0_DOMAIN` | Auth0 tenant domain |
+| `frontend/.env` | `REACT_APP_AUTH0_CLIENT_ID` | Public Auth0 SPA client ID |
+| `frontend/.env` | `REACT_APP_AUTH0_AUDIENCE` | Auth0 API audience |
 | `backend/.env` | `PORT` | Server port (default 10000) |
-| `backend/.env` | `CORS_ORIGINS` | Comma-separated allowed origins (default `*`) |
+| `backend/.env` | `AUTH0_ISSUER` | Auth0 token issuer |
+| `backend/.env` | `AUTH0_AUDIENCE` | Auth0 API audience |
+| `backend/.env` | `AUTH0_JWKS_URL` | Auth0 public signing-key endpoint |
+| `backend/.env` | `CORS_ORIGINS` | Exact comma-separated allowed origins |
 | `backend/.env` | `CACHE_TTL_*` | Cache lifetimes (history/overview/predict) |
 
-No secret API keys are required (Yahoo Finance public endpoints). Never commit `.env` files — `.gitignore` covers them.
+The SPA client ID and Auth0 issuer/audience/JWKS URL are public configuration, not secrets. No Auth0 client secret is used. Never commit `.env` files — `.gitignore` covers them.
 
 ## API documentation
 
@@ -111,6 +117,7 @@ No secret API keys are required (Yahoo Finance public endpoints). Never commit `
 | GET | `/` · `/health` | Health checks |
 | GET | `/search?q=` | Symbol search (curated + Yahoo) |
 | GET | `/watchlists` | Curated quick-pick lists |
+| GET | `/quote/<symbol>` · `/quote-summary/<symbol>` | Quote and dashboard summary |
 | GET | `/stock/<symbol>` | Overview + indicators + signal |
 | GET | `/history/<symbol>?range=` | OHLCV (`1d,5d,1mo,3mo,6mo,1y,2y,5y`) |
 | GET | `/indicators/<symbol>?range=` | Indicator values + aligned series |
@@ -121,11 +128,12 @@ No secret API keys are required (Yahoo Finance public endpoints). Never commit `
 | GET | `/predict?ticker=` | **Legacy** endpoint (kept for compatibility) |
 
 Errors are JSON: `{ "error": "human-readable message" }` with proper HTTP status (400/404/502).
+`/health` and the legacy `/` health text are public. Tracker data routes require an Auth0 RS256 access token in the `Authorization: Bearer` header; invalid or missing tokens receive 401.
 
 ## Deployment
 
-- **Frontend → Vercel**: build command `npm run build`, output `build`, set `REACT_APP_API_URL` to the Render URL.
-- **Backend → Render**: start command `gunicorn app:app` (root directory `backend/`), set `CORS_ORIGINS` to the Vercel domain for a strict policy.
+- **Frontend → Vercel**: build command `npm run build`, output `build`; set `REACT_APP_API_URL`, `REACT_APP_AUTH0_DOMAIN`, `REACT_APP_AUTH0_CLIENT_ID`, and `REACT_APP_AUTH0_AUDIENCE` in the Vercel environment settings.
+- **Backend → Render**: start command `gunicorn app:app` (root directory `backend/`); set `AUTH0_ISSUER`, `AUTH0_AUDIENCE`, `AUTH0_JWKS_URL`, and `CORS_ORIGINS` to the exact production Vercel origin plus required localhost origins.
 - Configure values in the dashboards; keep `.env` files out of git.
 
 ## Limitations
@@ -133,7 +141,7 @@ Errors are JSON: `{ "error": "human-readable message" }` with proper HTTP status
 - Market data is **delayed**, from Yahoo Finance; no real-time or tick data.
 - Model forecasts are statistical estimates — short-horizon equity returns are inherently noisy; metrics are reported honestly and may show the model does not beat the naive baseline.
 - News sentiment is keyword-lexicon based (labelled as such), not a trained transformer model.
-- Portfolio data stays in the browser; no accounts or cloud sync.
+- Portfolio, recent searches, and comparison symbols remain browser-local; authentication establishes identity but this phase adds no server-side user-data storage or database migration.
 - Provider rate limits may slow requests; responses are cached (30 min forecasts, 5 min history, 60 s quotes).
 
 ## Disclaimer

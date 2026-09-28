@@ -8,6 +8,15 @@ import axios from "axios";
  *   3. current production URL (fallback keeps the app working as before)
  */
 const PRODUCTION_URL = "https://market-ai-tracker.onrender.com";
+const configuredApiUrl = process.env.REACT_APP_API_URL;
+const TRUSTED_API_ORIGIN = (() => {
+  if (!configuredApiUrl) return null;
+  try {
+    return new URL(configuredApiUrl.trim()).origin;
+  } catch (_error) {
+    return null;
+  }
+})();
 
 function resolveBaseUrl() {
   try {
@@ -23,6 +32,11 @@ function resolveBaseUrl() {
 export const API_BASE = resolveBaseUrl();
 
 const client = axios.create({ baseURL: API_BASE, timeout: 45000 });
+let accessTokenProvider = null;
+
+export function setAccessTokenProvider(provider) {
+  accessTokenProvider = provider;
+}
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -32,6 +46,46 @@ export class ApiError extends Error {
   }
 }
 
+const isTrustedProtectedRequest = (config, trustedOrigin = TRUSTED_API_ORIGIN) => {
+  try {
+    if (!trustedOrigin) return false;
+    const url = new URL(config.url || "", config.baseURL || API_BASE);
+    return (
+      url.origin === trustedOrigin &&
+      url.pathname !== "/health"
+    );
+  } catch (_error) {
+    return false;
+  }
+};
+
+export async function attachBearerToken(
+  config,
+  tokenProvider = accessTokenProvider,
+  trustedOrigin = TRUSTED_API_ORIGIN
+) {
+  if (!tokenProvider || !isTrustedProtectedRequest(config, trustedOrigin)) {
+    return config;
+  }
+  try {
+    const token = await tokenProvider();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  } catch (_error) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("market-ai-unauthorized"));
+    }
+    return Promise.reject(
+      new ApiError("Unable to obtain a valid sign-in token. Please sign in again.", 401)
+    );
+  }
+}
+
+client.interceptors.request.use(attachBearerToken);
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -39,14 +93,19 @@ client.interceptors.response.use(
     let status = 0;
     if (error.response) {
       status = error.response.status;
-      message =
-        error.response.data && error.response.data.error
-          ? error.response.data.error
-          : status === 404
+      message = status === 401
+        ? "Your session could not be verified. Please sign in again."
+        : error.response.data && error.response.data.error
+        ? error.response.data.error
+        :
+          status === 404
           ? "Symbol not found or not supported by the data provider."
           : status === 429
           ? "Rate limited by the data provider. Please wait a moment and retry."
           : `Server error (${status}). Please try again.`;
+      if (status === 401 && isTrustedProtectedRequest(error.config)) {
+        window.dispatchEvent(new Event("market-ai-unauthorized"));
+      }
     } else if (error.code === "ECONNABORTED") {
       message = "The request timed out. Please try again.";
     } else {
@@ -80,6 +139,14 @@ const cachedGet = (key, ttlMs, url, params) =>
 
 export const api = {
   health: () => get("/health"),
+  quote: (symbol) =>
+    cachedGet(`quote:${symbol}`, 30000, `/quote/${encodeURIComponent(symbol)}`),
+  quoteSummary: (symbol) =>
+    cachedGet(
+      `quote-summary:${symbol}`,
+      30000,
+      `/quote-summary/${encodeURIComponent(symbol)}`
+    ),
   stock: (symbol) =>
     cachedGet(`stock:${symbol}`, 30000, `/stock/${encodeURIComponent(symbol)}`),
   history: (symbol, range = "1y") =>

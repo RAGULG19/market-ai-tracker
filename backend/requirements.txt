@@ -1,6 +1,7 @@
 flask
 flask-cors
 gunicorn
+PyJWT[crypto]>=2.10,<3
 python-dotenv
 yfinance
 # pandas<3 pinned: verified working locally (Smart App Control blocks the

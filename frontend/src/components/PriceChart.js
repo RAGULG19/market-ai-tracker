@@ -1,5 +1,5 @@
 import Chart from "react-apexcharts";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { formatPrice } from "../services/format";
 
 /** Range buttons mapped to backend ?range= values. */
@@ -38,7 +38,7 @@ const toX = (d) => new Date(String(d).replace(" ", "T")).getTime();
  * Main price chart: candlestick / line / area with SMA+EMA+Bollinger
  * overlays, range selector, zoom & pan (ApexCharts built-in toolbar).
  */
-export default function PriceChart({
+function PriceChart({
   history,
   indicators,
   currency = "USD",
@@ -221,3 +221,5 @@ export default function PriceChart({
     </div>
   );
 }
+
+export default memo(PriceChart);

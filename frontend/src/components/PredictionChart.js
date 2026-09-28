@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -28,7 +29,7 @@ ChartJS.register(
  * interval band. Every label states the model and horizon; nothing is
  * presented as a guaranteed outcome.
  */
-export default function PredictionChart({ forecast, currency = "USD" }) {
+function PredictionChart({ forecast, currency = "USD" }) {
   if (!forecast || !forecast.predictions || !forecast.predictions.length) {
     return (
       <div className="card chart-card">
@@ -129,3 +130,5 @@ export default function PredictionChart({ forecast, currency = "USD" }) {
     </div>
   );
 }
+
+export default memo(PredictionChart);

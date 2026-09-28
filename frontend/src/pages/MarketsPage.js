@@ -14,7 +14,7 @@ const TAB_LABELS = {
   indexes: "Indexes",
 };
 
-/** Curated market watchlists; quotes load via the backend /stock cache. */
+/** Curated market watchlists; quote-only requests avoid unused analysis work. */
 export default function MarketsPage({ onOpen }) {
   const [watchlists, setWatchlists] = useState(null);
   const [tab, setTab] = useState("popular");
@@ -45,9 +45,9 @@ export default function MarketsPage({ onOpen }) {
         while (queue.length) {
           const item = queue.shift();
           try {
-            const data = await api.stock(item.symbol);
+            const data = await api.quote(item.symbol);
             if (!cancelled) {
-              setQuotes((q) => ({ ...q, [item.symbol]: data.overview }));
+              setQuotes((q) => ({ ...q, [item.symbol]: data }));
             }
           } catch (e) {
             /* symbol unsupported by provider — skip silently in list view */

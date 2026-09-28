@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 import { toast } from "../services/toast";
 import SearchBar from "../components/SearchBar";
@@ -11,10 +11,14 @@ export default function ComparePage({ symbols, setSymbols, onOpen }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const requestId = useRef(0);
 
   const load = (list) => {
+    const currentRequest = ++requestId.current;
     if (!list || list.length < 2) {
       setData(null);
+      setLoading(false);
+      setError(null);
       return;
     }
     setLoading(true);
@@ -22,13 +26,18 @@ export default function ComparePage({ symbols, setSymbols, onOpen }) {
     api
       .compare(list)
       .then((res) => {
+        if (currentRequest !== requestId.current) return;
         setData(res);
         (res.errors || []).forEach((e) =>
           toast(`${e.symbol}: ${e.error}`, "warning")
         );
       })
-      .catch((err) => setError(err))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (currentRequest === requestId.current) setError(err);
+      })
+      .finally(() => {
+        if (currentRequest === requestId.current) setLoading(false);
+      });
   };
 
   useEffect(() => {
