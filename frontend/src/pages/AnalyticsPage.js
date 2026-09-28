@@ -15,17 +15,23 @@ export default function AnalyticsPage({ symbol }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let active = true;
     if (!symbol) {
       setLoading(false);
-      return;
+      return () => {
+        active = false;
+      };
     }
     setLoading(true);
     setError(null);
     api
       .predict(symbol)
-      .then(setForecast)
-      .catch(setError)
-      .finally(() => setLoading(false));
+      .then((data) => active && setForecast(data))
+      .catch((err) => active && setError(err))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
   }, [symbol]);
 
   if (!symbol) {

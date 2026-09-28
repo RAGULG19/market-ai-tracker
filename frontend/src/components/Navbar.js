@@ -1,5 +1,5 @@
 /** Primary navigation + brand header. Responsive: collapses on mobile. */
-export default function Navbar({ route, onNavigate, children }) {
+export default function Navbar({ route, onNavigate, children, userLabel, onLogout }) {
   const links = [
     { id: "dashboard", label: "Dashboard" },
     { id: "markets", label: "Markets" },
@@ -42,6 +42,12 @@ export default function Navbar({ route, onNavigate, children }) {
         </nav>
 
         <div className="navbar-search">{children}</div>
+        <div className="account-controls">
+          <span className="account-label" title={userLabel}>{userLabel}</span>
+          <button type="button" className="btn btn-ghost btn-small" onClick={onLogout}>
+            Sign out
+          </button>
+        </div>
       </div>
     </header>
   );

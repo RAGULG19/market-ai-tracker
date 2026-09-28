@@ -8,6 +8,7 @@ Responsibilities:
 """
 import threading
 import time
+from concurrent.futures import Future
 
 import pandas as pd
 import yfinance as yf
@@ -23,6 +24,7 @@ from services.helpers import ApiError, fmt_dates, json_safe
 
 _lock = threading.Lock()
 _cache = {}
+_inflight = {}
 
 # Supported chart ranges -> (yfinance period, interval)
 RANGE_MAP = {
@@ -50,6 +52,39 @@ def _cache_set(key, value):
         if len(_cache) > 512:
             _cache.clear()
         _cache[key] = (time.time(), value)
+
+
+def cached_call(key, ttl, loader):
+    """Cache a value and coalesce concurrent loads for the same key."""
+    cached = _cache_get(key, ttl)
+    if cached is not None:
+        return cached
+
+    with _lock:
+        entry = _cache.get(key)
+        if entry and (time.time() - entry[0]) < ttl:
+            return entry[1]
+        future = _inflight.get(key)
+        owner = future is None
+        if owner:
+            future = Future()
+            _inflight[key] = future
+
+    if not owner:
+        return future.result()
+
+    try:
+        value = loader()
+        _cache_set(key, value)
+        future.set_result(value)
+        return value
+    except BaseException as exc:
+        future.set_exception(exc)
+        raise
+    finally:
+        with _lock:
+            if _inflight.get(key) is future:
+                del _inflight[key]
 
 
 def flatten_ohlc(raw):
@@ -104,10 +139,14 @@ def download(symbol, period="1y", interval="1d"):
     sent no prices -> 502 transient; provider doesn't know it -> 404.
     """
     key = ("hist", symbol, period, interval)
-    cached = _cache_get(key, CACHE_TTL_HISTORY)
-    if cached is not None:
-        return cached
+    return cached_call(
+        key,
+        CACHE_TTL_HISTORY,
+        lambda: _download_history(symbol, period, interval),
+    )
 
+
+def _download_history(symbol, period, interval):
     df, err = _try_download(symbol, period, interval)
     if df is None:
         raise ApiError("Market data provider request failed: %s" % err, 502)
@@ -141,7 +180,6 @@ def download(symbol, period="1y", interval="1d"):
             404,
         )
 
-    _cache_set(key, df)
     return df
 
 
@@ -169,10 +207,14 @@ def get_history(symbol, range_key="1y"):
 
 def get_overview(symbol):
     """Quote overview with correct currency and exchange metadata."""
-    cached = _cache_get(("overview", symbol), CACHE_TTL_OVERVIEW)
-    if cached is not None:
-        return cached
+    return cached_call(
+        ("overview", symbol),
+        CACHE_TTL_OVERVIEW,
+        lambda: _load_overview(symbol),
+    )
 
+
+def _load_overview(symbol):
     hist = download(symbol, period="1y", interval="1d")
     close = hist["Close"].astype(float)
     price = float(close.iloc[-1])
@@ -215,5 +257,4 @@ def get_overview(symbol):
         "market_cap": json_safe(info.get("marketCap"), 0),
         "as_of": fmt_dates([hist.index[-1]], "1d")[0],
     }
-    _cache_set(("overview", symbol), overview)
     return overview

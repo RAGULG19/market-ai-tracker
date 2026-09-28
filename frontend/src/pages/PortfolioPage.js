@@ -20,10 +20,8 @@ export default function PortfolioPage() {
     holdings.forEach((h) => {
       if (quotes[h.symbol]) return;
       api
-        .stock(h.symbol)
-        .then((data) =>
-          setQuotes((q) => ({ ...q, [h.symbol]: data.overview }))
-        )
+        .quote(h.symbol)
+        .then((data) => setQuotes((q) => ({ ...q, [h.symbol]: data })))
         .catch(() => {
           /* leave at buy price if quote unavailable */
         });

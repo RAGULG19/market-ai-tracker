@@ -1,4 +1,5 @@
 import Chart from "react-apexcharts";
+import { memo, useMemo } from "react";
 import { formatPrice } from "../services/format";
 
 /** Range buttons mapped to backend ?range= values. */
@@ -37,7 +38,7 @@ const toX = (d) => new Date(String(d).replace(" ", "T")).getTime();
  * Main price chart: candlestick / line / area with SMA+EMA+Bollinger
  * overlays, range selector, zoom & pan (ApexCharts built-in toolbar).
  */
-export default function PriceChart({
+function PriceChart({
   history,
   indicators,
   currency = "USD",
@@ -48,6 +49,113 @@ export default function PriceChart({
   overlays,
   onToggleOverlay,
 }) {
+  const { series, options } = useMemo(() => {
+    if (!history || !history.dates || !history.dates.length) {
+      return { series: [], options: {} };
+    }
+    const chartDates = history.dates;
+    const xs = chartDates.map(toX);
+    const indDates = indicators ? indicators.dates : null;
+    const chartSeries = [];
+
+    if (chartType === "candlestick") {
+      chartSeries.push({
+      name: "Price",
+      data: chartDates.map((d, i) => ({
+        x: toX(d),
+        y: [history.open[i], history.high[i], history.low[i], history.close[i]],
+      })),
+      });
+    } else {
+      chartSeries.push({
+      name: "Price",
+      data: xs.map((x, i) => ({ x, y: history.close[i] })),
+      });
+    }
+
+    const indSeries = indicators ? indicators.series : null;
+    if (indSeries) {
+    /* align() is hoisted out of the map callback — building the date
+       lookup once per series keeps 5Y ranges (1250+ points) fast. */
+      const alignedCache = {};
+      const alignedFor = (key) => {
+        if (!(key in alignedCache)) {
+          alignedCache[key] = align(indSeries[key], indDates, chartDates);
+        }
+        return alignedCache[key];
+      };
+      OVERLAYS.forEach((ov) => {
+        if (!overlays[ov.id]) return;
+        if (ov.id === "bb") {
+          ["bb_upper", "bb_lower"].forEach((key, k) => {
+            const vals = alignedFor(key);
+            chartSeries.push({
+              name: k === 0 ? "BB Upper" : "BB Lower",
+              type: "line",
+              data: xs.map((x, i) => ({ x, y: vals[i] })),
+            });
+          });
+        } else if (indSeries[ov.id]) {
+          const vals = alignedFor(ov.id);
+          chartSeries.push({
+            name: ov.label,
+            type: "line",
+            data: xs.map((x, i) => ({ x, y: vals[i] })),
+          });
+        }
+      });
+    }
+
+    const chartOptions = {
+      chart: {
+        type: chartType,
+        height: 420,
+        background: "transparent",
+        fontFamily: "inherit",
+        toolbar: { show: true, tools: { download: true, zoom: true, pan: true, reset: true } },
+        zoom: { enabled: true, type: "x" },
+        animations: { enabled: false },
+      },
+      theme: { mode: "dark" },
+      colors: ["#22d3ee", ...OVERLAYS.map((o) => o.color)],
+      stroke: { width: chartType === "candlestick" ? 1 : [2, 1, 1, 1, 1, 1, 1, 1] },
+      dataLabels: { enabled: false },
+      grid: { borderColor: "rgba(148,163,184,0.12)", strokeDashArray: 3 },
+      xaxis: {
+        type: "datetime",
+        labels: {
+          datetimeUTC: false,
+          style: { colors: "#94a3b8", fontSize: "11px" },
+          datetimeFormatter: { day: "dd MMM", month: "MMM yy" },
+        },
+      },
+      yaxis: {
+        labels: {
+          style: { colors: "#94a3b8", fontSize: "11px" },
+          formatter: (v) => formatPrice(v, currency, v > 1000 ? 0 : 2),
+        },
+      },
+      tooltip: {
+        theme: "dark",
+        shared: chartType !== "candlestick",
+        y: { formatter: (v) => formatPrice(v, currency) },
+      },
+      legend: {
+        show: chartSeries.length > 1,
+        labels: { colors: "#cbd5e1" },
+        position: "top",
+        horizontalAlign: "left",
+      },
+      plotOptions: {
+        candlestick: {
+          colors: { upward: "#34d399", downward: "#f87171" },
+          wick: { useFillColor: true },
+        },
+      },
+    };
+    return { dates: chartDates, series: chartSeries, options: chartOptions };
+  }, [history, indicators, chartType, currency, overlays]);
+
   if (!history || !history.dates || !history.dates.length) {
     return (
       <div className="card chart-card">
@@ -55,107 +163,6 @@ export default function PriceChart({
       </div>
     );
   }
-
-  const dates = history.dates;
-  const xs = dates.map(toX);
-  const indDates = indicators ? indicators.dates : null;
-  const series = [];
-
-  if (chartType === "candlestick") {
-    series.push({
-      name: "Price",
-      data: dates.map((d, i) => ({
-        x: toX(d),
-        y: [history.open[i], history.high[i], history.low[i], history.close[i]],
-      })),
-    });
-  } else {
-    series.push({
-      name: "Price",
-      data: xs.map((x, i) => ({ x, y: history.close[i] })),
-    });
-  }
-
-  const indSeries = indicators ? indicators.series : null;
-  if (indSeries) {
-    /* align() is hoisted out of the map callback — building the date
-       lookup once per series keeps 5Y ranges (1250+ points) fast. */
-    const alignedCache = {};
-    const alignedFor = (key) => {
-      if (!(key in alignedCache)) {
-        alignedCache[key] = align(indSeries[key], indDates, dates);
-      }
-      return alignedCache[key];
-    };
-    OVERLAYS.forEach((ov) => {
-      if (!overlays[ov.id]) return;
-      if (ov.id === "bb") {
-        ["bb_upper", "bb_lower"].forEach((key, k) => {
-          const vals = alignedFor(key);
-          series.push({
-            name: k === 0 ? "BB Upper" : "BB Lower",
-            type: "line",
-            data: xs.map((x, i) => ({ x, y: vals[i] })),
-          });
-        });
-      } else if (indSeries[ov.id]) {
-        const vals = alignedFor(ov.id);
-        series.push({
-          name: ov.label,
-          type: "line",
-          data: xs.map((x, i) => ({ x, y: vals[i] })),
-        });
-      }
-    });
-  }
-
-  const options = {
-    chart: {
-      type: chartType,
-      height: 420,
-      background: "transparent",
-      fontFamily: "inherit",
-      toolbar: { show: true, tools: { download: true, zoom: true, pan: true, reset: true } },
-      zoom: { enabled: true, type: "x" },
-      animations: { enabled: false },
-    },
-    theme: { mode: "dark" },
-    colors: ["#22d3ee", ...OVERLAYS.map((o) => o.color)],
-    stroke: { width: chartType === "candlestick" ? 1 : [2, 1, 1, 1, 1, 1, 1, 1] },
-    dataLabels: { enabled: false },
-    grid: { borderColor: "rgba(148,163,184,0.12)", strokeDashArray: 3 },
-    xaxis: {
-      type: "datetime",
-      labels: {
-        datetimeUTC: false,
-        style: { colors: "#94a3b8", fontSize: "11px" },
-        datetimeFormatter: { day: "dd MMM", month: "MMM yy" },
-      },
-    },
-    yaxis: {
-      labels: {
-        style: { colors: "#94a3b8", fontSize: "11px" },
-        formatter: (v) => formatPrice(v, currency, v > 1000 ? 0 : 2),
-      },
-    },
-    tooltip: {
-      theme: "dark",
-      shared: chartType !== "candlestick",
-      y: { formatter: (v) => formatPrice(v, currency) },
-    },
-    legend: {
-      show: series.length > 1,
-      labels: { colors: "#cbd5e1" },
-      position: "top",
-      horizontalAlign: "left",
-    },
-    plotOptions: {
-      candlestick: {
-        colors: { upward: "#34d399", downward: "#f87171" },
-        wick: { useFillColor: true },
-      },
-    },
-  };
 
   return (
     <div className="card chart-card">
@@ -214,3 +221,5 @@ export default function PriceChart({
     </div>
   );
 }
+
+export default memo(PriceChart);

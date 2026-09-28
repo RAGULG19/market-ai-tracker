@@ -15,24 +15,35 @@ REST-style routes:
   GET /compare?symbols=A,B  multi-symbol comparison snapshot
   GET /predict?ticker=X     LEGACY endpoint kept for the deployed frontend
 """
+from functools import lru_cache, wraps
+
+import jwt
 from flask import Flask, jsonify, request
+from flask import g
 from flask_cors import CORS
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config import (
+    CACHE_TTL_HISTORY,
     CACHE_TTL_PREDICT,
+    AUTH0_AUDIENCE,
+    AUTH0_ISSUER,
+    AUTH0_JWKS_URL,
     CORS_ORIGINS,
     DEFAULT_FORECAST_DAYS,
     resolve_symbol,
 )
 from services import indicators, market_data, ml, news, search, signals
 from services.helpers import ApiError
-from services.market_data import _cache_get, _cache_set
 
 app = Flask(__name__)
-if CORS_ORIGINS.strip() == "*":
-    CORS(app)
-else:
-    CORS(app, origins=[o.strip() for o in CORS_ORIGINS.split(",") if o.strip()])
+CORS(
+    app,
+    origins=[o.strip() for o in CORS_ORIGINS.split(",") if o.strip()],
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "OPTIONS"],
+    supports_credentials=False,
+)
 
 
 # ---------------------------------------------------------------- errors ---
@@ -88,18 +99,70 @@ def _range():
     return key
 
 
+@lru_cache(maxsize=4)
+def _get_jwks_client(jwks_url):
+    return jwt.PyJWKClient(jwks_url)
+
+
+def require_auth(view):
+    """Verify Auth0 access tokens before entering tracker data routes."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        authorization = request.headers.get("Authorization", "")
+        scheme, separator, token = authorization.partition(" ")
+        if not separator or scheme.lower() != "bearer" or not token.strip():
+            return jsonify({"error": "Authentication required."}), 401
+
+        if not AUTH0_ISSUER or not AUTH0_AUDIENCE or not AUTH0_JWKS_URL:
+            return jsonify({"error": "Authentication is not configured."}), 503
+
+        try:
+            signing_key = _get_jwks_client(
+                AUTH0_JWKS_URL
+            ).get_signing_key_from_jwt(token.strip())
+            claims = jwt.decode(
+                token.strip(),
+                signing_key.key,
+                algorithms=["RS256"],
+                issuer=AUTH0_ISSUER,
+                audience=AUTH0_AUDIENCE,
+                options={"require": ["exp", "iss", "aud", "sub"]},
+            )
+            if not isinstance(claims.get("sub"), str) or not claims["sub"].strip():
+                raise jwt.InvalidTokenError("Invalid subject")
+        except jwt.PyJWKClientConnectionError:
+            return jsonify({"error": "Authentication service unavailable."}), 503
+        except (jwt.PyJWTError, jwt.PyJWKClientError, ValueError, TypeError):
+            return jsonify({"error": "Invalid or expired access token."}), 401
+
+        g.auth_user_id = claims["sub"]
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def get_forecast(symbol, horizon):
     """Cached ML forecast (models are retrained only every cache TTL)."""
     key = ("predict", symbol, horizon)
-    cached = _cache_get(key, CACHE_TTL_PREDICT)
-    if cached is not None:
-        return cached
-    hist = market_data.download(symbol, period="2y", interval="1d")
-    forecast = ml.train_and_forecast(hist, horizon=horizon)
-    forecast = dict(forecast)
-    forecast["symbol"] = symbol
-    _cache_set(key, forecast)
-    return forecast
+
+    def calculate():
+        hist = market_data.download(symbol, period="2y", interval="1d")
+        forecast = dict(ml.train_and_forecast(hist, horizon=horizon))
+        forecast["symbol"] = symbol
+        return forecast
+
+    return market_data.cached_call(key, CACHE_TTL_PREDICT, calculate)
+
+
+def get_daily_indicators(symbol):
+    """Reuse the standard one-year daily indicator calculation briefly."""
+    key = ("daily-indicators", symbol)
+
+    def calculate():
+        hist = market_data.download(symbol, period="1y", interval="1d")
+        return indicators.compute_indicators(hist, interval="1d")
+
+    return market_data.cached_call(key, CACHE_TTL_HISTORY, calculate)
 
 
 # --------------------------------------------------------------- routes ----
@@ -115,11 +178,13 @@ def health():
 
 
 @app.route("/watchlists")
+@require_auth
 def watchlists():
     return jsonify({"watchlists": search.get_watchlists()})
 
 
 @app.route("/search")
+@require_auth
 def search_route():
     q = request.args.get("q", "")
     if not q.strip():
@@ -131,12 +196,28 @@ def search_route():
     return jsonify({"results": search.search_symbols(q, limit=limit)})
 
 
+@app.route("/quote/<symbol>")
+@require_auth
+def quote(symbol):
+    sym = _clean_symbol(symbol)
+    return jsonify(market_data.get_overview(sym))
+
+
+@app.route("/quote-summary/<symbol>")
+@require_auth
+def quote_summary(symbol):
+    sym = _clean_symbol(symbol)
+    overview = market_data.get_overview(sym)
+    ind = get_daily_indicators(sym)
+    return jsonify({"overview": overview, "indicators": ind["latest"]})
+
+
 @app.route("/stock/<symbol>")
+@require_auth
 def stock(symbol):
     sym = _clean_symbol(symbol)
     overview = market_data.get_overview(sym)
-    hist = market_data.download(sym, period="1y", interval="1d")
-    ind = indicators.compute_indicators(hist, interval="1d")
+    ind = get_daily_indicators(sym)
     forecast = get_forecast(sym, _horizon())
     signal = signals.build_signal(overview, ind, forecast)
     return jsonify(
@@ -149,12 +230,14 @@ def stock(symbol):
 
 
 @app.route("/history/<symbol>")
+@require_auth
 def history(symbol):
     sym = _clean_symbol(symbol)
     return jsonify(market_data.get_history(sym, _range()))
 
 
 @app.route("/indicators/<symbol>")
+@require_auth
 def indicators_route(symbol):
     sym = _clean_symbol(symbol)
     range_key = _range()
@@ -175,22 +258,24 @@ def indicators_route(symbol):
 
 
 @app.route("/predict/<symbol>")
+@require_auth
 def predict_symbol(symbol):
     sym = _clean_symbol(symbol)
     return jsonify(get_forecast(sym, _horizon()))
 
 
 @app.route("/signal/<symbol>")
+@require_auth
 def signal_route(symbol):
     sym = _clean_symbol(symbol)
     overview = market_data.get_overview(sym)
-    hist = market_data.download(sym, period="1y", interval="1d")
-    ind = indicators.compute_indicators(hist, interval="1d")
+    ind = get_daily_indicators(sym)
     forecast = get_forecast(sym, _horizon())
     return jsonify(signals.build_signal(overview, ind, forecast))
 
 
 @app.route("/news/<symbol>")
+@require_auth
 def news_symbol(symbol):
     sym = _clean_symbol(symbol)
     limit = _news_limit()
@@ -198,6 +283,7 @@ def news_symbol(symbol):
 
 
 @app.route("/news")
+@require_auth
 def news_market():
     limit = _news_limit()
     return jsonify(
@@ -215,6 +301,7 @@ def _news_limit():
 
 
 @app.route("/compare")
+@require_auth
 def compare():
     raw = request.args.get("symbols", "")
     symbols = [_clean_symbol(s) for s in raw.split(",") if s.strip()]
@@ -224,40 +311,46 @@ def compare():
         raise ApiError("You can compare at most 6 symbols at once.", 400)
 
     horizon = _horizon()
-    results, errors = [], []
-    for sym in symbols:
-        try:
-            overview = market_data.get_overview(sym)
-            hist = market_data.download(sym, period="1y", interval="1d")
-            ind = indicators.compute_indicators(hist, interval="1d")
-            forecast = get_forecast(sym, horizon)
-            signal = signals.build_signal(overview, ind, forecast)
-            results.append(
-                {
-                    "symbol": sym,
-                    "name": overview["name"],
-                    "currency": overview["currency"],
-                    "current_price": overview["current_price"],
-                    "change_pct": overview["change_pct"],
-                    "indicators": ind["latest"],
-                    "forecast": {
-                        "model": forecast["model"],
-                        "forecast_price": forecast["forecast_price"],
-                        "expected_change_pct": forecast["expected_change_pct"],
-                        "direction": forecast["direction"],
-                        "model_confidence": forecast["model_confidence"],
-                        "horizon_days": forecast["horizon_days"],
-                    },
-                    "signal": signal,
-                }
-            )
-        except ApiError as exc:
-            errors.append({"symbol": sym, "error": exc.message})
+    def load_comparison(sym):
+        overview = market_data.get_overview(sym)
+        ind = get_daily_indicators(sym)
+        forecast = get_forecast(sym, horizon)
+        signal = signals.build_signal(overview, ind, forecast)
+        return {
+            "symbol": sym,
+            "name": overview["name"],
+            "currency": overview["currency"],
+            "current_price": overview["current_price"],
+            "change_pct": overview["change_pct"],
+            "indicators": ind["latest"],
+            "forecast": {
+                "model": forecast["model"],
+                "forecast_price": forecast["forecast_price"],
+                "expected_change_pct": forecast["expected_change_pct"],
+                "direction": forecast["direction"],
+                "model_confidence": forecast["model_confidence"],
+                "horizon_days": forecast["horizon_days"],
+            },
+            "signal": signal,
+        }
+
+    results_by_symbol, errors = {}, []
+    with ThreadPoolExecutor(max_workers=min(4, len(symbols))) as executor:
+        futures = {executor.submit(load_comparison, sym): sym for sym in symbols}
+        for future in as_completed(futures):
+            sym = futures[future]
+            try:
+                results_by_symbol[sym] = future.result()
+            except ApiError as exc:
+                errors.append({"symbol": sym, "error": exc.message})
+
+    results = [results_by_symbol[sym] for sym in symbols if sym in results_by_symbol]
     return jsonify({"results": results, "errors": errors})
 
 
 # ------------------------------------------- LEGACY /predict?ticker= -------
 @app.route("/predict", methods=["GET"])
+@require_auth
 def predict_legacy():
     """Original endpoint shape — kept so the deployed frontend keeps working.
 
@@ -343,4 +436,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=False)
-

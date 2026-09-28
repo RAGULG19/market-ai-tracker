@@ -1,4 +1,5 @@
 import Chart from "react-apexcharts";
+import { memo } from "react";
 import { formatNumber } from "../services/format";
 
 const toX = (d) => new Date(String(d).replace(" ", "T")).getTime();
@@ -32,7 +33,7 @@ const baseOptions = (height) => ({
  * Volume (bars + 20-day average). Kept as separate panels so the price
  * chart stays readable.
  */
-export default function IndicatorPanels({ indicators, show }) {
+function IndicatorPanels({ indicators, show }) {
   if (!indicators || !indicators.dates || !indicators.dates.length) return null;
   const { dates, series } = indicators;
   const xs = dates.map(toX);
@@ -170,3 +171,5 @@ export default function IndicatorPanels({ indicators, show }) {
     </section>
   );
 }
+
+export default memo(IndicatorPanels);

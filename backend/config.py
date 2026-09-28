@@ -16,8 +16,28 @@ except Exception:  # pragma: no cover
 
 PORT = int(os.environ.get("PORT", "10000"))
 
-# Comma-separated allowed CORS origins. "*" preserves the original behavior.
-CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*")
+# CORS is an exact-origin allowlist; wildcard entries are ignored.
+DEFAULT_CORS_ORIGINS = (
+    "https://market-ai-tracker.vercel.app,"
+    "http://localhost:3000,http://127.0.0.1:3000"
+)
+_cors_origins = os.environ.get("CORS_ORIGINS", DEFAULT_CORS_ORIGINS)
+if "*" in {origin.strip() for origin in _cors_origins.split(",")}:
+    _cors_origins = DEFAULT_CORS_ORIGINS
+CORS_ORIGINS = _cors_origins
+
+AUTH0_ISSUER = os.environ.get(
+    "AUTH0_ISSUER", "https://ragulg.us.auth0.com/"
+).strip()
+if AUTH0_ISSUER and not AUTH0_ISSUER.endswith("/"):
+    AUTH0_ISSUER += "/"
+AUTH0_AUDIENCE = os.environ.get(
+    "AUTH0_AUDIENCE", "https://market-ai-tracker-api"
+).strip()
+AUTH0_JWKS_URL = os.environ.get(
+    "AUTH0_JWKS_URL",
+    "%s.well-known/jwks.json" % AUTH0_ISSUER,
+).strip()
 
 # Cache lifetimes in seconds (keeps Render/yfinance call volume low).
 CACHE_TTL_HISTORY = int(os.environ.get("CACHE_TTL_HISTORY", "300"))
